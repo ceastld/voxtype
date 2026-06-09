@@ -5,7 +5,7 @@
   "identifier": "app.voxtype.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://127.0.0.1:1420",
+    "devUrl": "http://127.0.0.1:2430",
     "beforeBuildCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../scripts/prepare-tauri-build.ps1 && pnpm build",
     "frontendDist": "../dist"
   },
@@ -15,7 +15,10 @@
         "label": "main",
         "title": "VoxType 设置",
         "width": 760,
-        "height": 640,
+        "height": 520,
+        "minWidth": 640,
+        "minHeight": 420,
+        "maxHeight": 880,
         "center": true,
         "resizable": true,
         "visible": true
@@ -24,15 +27,18 @@
         "label": "overlay",
         "title": "VoxType",
         "url": "overlay.html",
-        "width": 200,
-        "height": 48,
+        "width": 520,
+        "height": 140,
+        "center": true,
         "decorations": false,
         "transparent": true,
+        "shadow": false,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "visible": true,
+        "visible": false,
         "resizable": false,
-        "focus": false
+        "focus": false,
+        "focusable": false
       }
     ],
     "security": {

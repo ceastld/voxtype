@@ -5,62 +5,186 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VoxType Overlay</title>
     <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      html, body {
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
         width: 100%;
         height: 100%;
-        background: transparent;
+        background: transparent !important;
         overflow: hidden;
         font-family: "Segoe UI", system-ui, sans-serif;
+        user-select: none;
+        pointer-events: none;
       }
-      .pill {
+      #root {
+        width: 100%;
+        height: 100%;
         display: flex;
         align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transform: translateY(6px) scale(0.96);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        background: transparent;
+      }
+      #root.visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      .capsule {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
         gap: 10px;
-        padding: 10px 16px;
+        padding: 14px 18px 16px;
+        border-radius: 18px;
+        background: rgba(10, 12, 18, 0.88);
+        outline: none;
+        border: none;
+        box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(14px);
+        min-width: 220px;
+        max-width: 500px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .wave {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 4px;
+        height: 28px;
+        flex-shrink: 0;
+      }
+      .bar {
+        width: 4px;
         border-radius: 999px;
-        background: rgba(20, 22, 30, 0.88);
-        border: 1px solid rgba(79, 140, 255, 0.5);
-        color: #e8eaed;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-        backdrop-filter: blur(8px);
+        background: linear-gradient(180deg, #7eb6ff 0%, #4f8cff 55%, #2f6bff 100%);
+        height: 8px;
+        transform-origin: center bottom;
+        animation: none;
       }
-      .dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #f28b82;
-        animation: pulse 1s ease-in-out infinite;
+      #root.visible .bar {
+        animation: wave 0.85s ease-in-out infinite;
       }
-      .dot.idle { background: #9aa0a6; animation: none; }
-      .dot.transcribing { background: #fdd663; }
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.35); opacity: 0.65; }
+      #root.transcribing .bar {
+        animation-duration: 1.2s;
+        opacity: 0.65;
       }
-      #label { font-size: 13px; white-space: nowrap; }
+      .bar:nth-child(1) { animation-delay: 0s; }
+      .bar:nth-child(2) { animation-delay: 0.07s; }
+      .bar:nth-child(3) { animation-delay: 0.14s; }
+      .bar:nth-child(4) { animation-delay: 0.21s; }
+      .bar:nth-child(5) { animation-delay: 0.28s; }
+      @keyframes wave {
+        0%,
+        100% {
+          height: 8px;
+          opacity: 0.5;
+        }
+        50% {
+          height: 26px;
+          opacity: 1;
+        }
+      }
+      #status {
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: rgba(180, 195, 220, 0.9);
+        white-space: nowrap;
+      }
+      #text {
+        font-size: 16px;
+        line-height: 1.45;
+        color: rgba(245, 247, 250, 0.98);
+        word-break: break-word;
+        min-height: 1.45em;
+        max-height: 4.35em;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+      }
+      #text.empty {
+        color: rgba(200, 205, 215, 0.55);
+        font-size: 13px;
+      }
+      #text.partial::after {
+        content: "▍";
+        display: inline-block;
+        margin-left: 2px;
+        color: #6ea8ff;
+        animation: blink 0.9s step-end infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="pill">
-      <div id="dot" class="dot idle"></div>
-      <span id="label">VoxType</span>
+    <div id="root">
+      <div class="capsule">
+        <div class="top">
+          <div class="wave" aria-hidden="true">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </div>
+          <span id="status">正在听…</span>
+        </div>
+        <div id="text" class="empty partial">…</div>
+      </div>
     </div>
     <script type="module">
       import { listen } from "@tauri-apps/api/event";
-      const dot = document.getElementById("dot");
-      const label = document.getElementById("label");
-      listen("overlay-phase", (ev) => {
-        const phase = ev.payload;
-        dot.className = "dot";
-        if (phase === "recording") {
-          label.textContent = "正在听…";
-        } else if (phase === "transcribing") {
-          dot.classList.add("transcribing");
-          label.textContent = "识别中…";
+
+      const root = document.getElementById("root");
+      const status = document.getElementById("status");
+      const textEl = document.getElementById("text");
+
+      let phase = "idle";
+
+      function setText(value) {
+        const t = typeof value === "string" ? value.trim() : "";
+        if (!t) {
+          textEl.textContent = phase === "transcribing" ? "识别中…" : "…";
+          textEl.classList.add("empty");
         } else {
-          dot.classList.add("idle");
-          label.textContent = "VoxType";
+          textEl.textContent = t;
+          textEl.classList.remove("empty");
+        }
+      }
+
+      function applyPhase(next) {
+        phase = next;
+        root.classList.toggle("visible", next === "recording" || next === "transcribing");
+        root.classList.toggle("transcribing", next === "transcribing");
+        status.textContent = next === "transcribing" ? "识别中" : "正在听…";
+        textEl.classList.toggle("partial", next === "recording");
+        if (next === "idle") {
+          setText("");
+        }
+      }
+
+      listen("overlay-phase", (ev) => {
+        applyPhase(ev.payload);
+      });
+
+      listen("overlay-partial", (ev) => {
+        const payload = ev.payload;
+        if (typeof payload === "string") {
+          setText(payload);
         }
       });
     </script>

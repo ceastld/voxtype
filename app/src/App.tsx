@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { DownloadToast } from "./components/DownloadToast";
+import { useSettingsWindowSize } from "./lib/useSettingsWindowSize";
 
 type AppStatus = {
   runtimeRunning: boolean;
   runtimeReady: boolean;
+  runtimeWsPort?: number;
   dictationPhase: string;
   activeModelId: string | null;
   activeModelName?: string | null;
   hotkey: string;
-  modelsCatalogPath?: string;
+  hotkeyMode?: string;
+  lastError?: string | null;
   modelsCatalogSource?: string;
 };
 
@@ -20,17 +24,31 @@ type ModelStatus = {
   supported: boolean;
   installed: boolean;
   active: boolean;
-  capsWriterType?: string | null;
+};
+
+type DownloadProgress = {
+  percent: number;
+  message?: string;
+  modelId?: string;
+  modelName?: string;
+  done?: boolean;
 };
 
 export default function App() {
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [hotkey, setHotkey] = useState("F9");
-  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+  const [hotkeyMode, setHotkeyMode] = useState<"hold" | "toggle">("hold");
+  const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const rootRef = useSettingsWindowSize([
+    models.length,
+    status?.lastError,
+    message,
+    download,
+  ]);
 
   const refreshModels = useCallback(async () => {
     const list = await invoke<ModelStatus[]>("list_models_status");
@@ -42,6 +60,7 @@ export default function App() {
       const s = await invoke<AppStatus>("get_app_status");
       setStatus(s);
       setHotkey(s.hotkey);
+      setHotkeyMode(s.hotkeyMode === "toggle" ? "toggle" : "hold");
       await refreshModels();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
@@ -50,18 +69,20 @@ export default function App() {
 
   useEffect(() => {
     void refresh();
-    const unlisten = listen<{ percent: number; message?: string }>(
-      "model-download-progress",
-      (ev) => {
-        setDownloadProgress(ev.payload.percent);
-        if (ev.payload.message) setDownloadMessage(ev.payload.message);
-      },
-    );
+    const unlisten = listen<DownloadProgress>("model-download-progress", (ev) => {
+      setDownload((prev) => ({
+        percent: ev.payload.percent,
+        message: ev.payload.message ?? prev?.message ?? "下载中…",
+        modelId: ev.payload.modelId ?? prev?.modelId,
+        modelName: ev.payload.modelName ?? prev?.modelName ?? "模型",
+        done: ev.payload.done ?? false,
+      }));
+    });
     const unlistenDone = listen("model-download-done", () => {
-      setDownloadProgress(null);
-      setDownloadMessage(null);
+      setDownload(null);
       setBusyId(null);
       void refresh();
+      setMessage("模型下载完成，已自动切换。");
     });
     return () => {
       void unlisten.then((fn) => fn());
@@ -72,22 +93,26 @@ export default function App() {
   const applyHotkey = async () => {
     setMessage(null);
     await invoke("set_hotkey", { hotkey });
+    await invoke("set_hotkey_mode", { mode: hotkeyMode });
     await refresh();
-    setMessage("热键已更新，重启客户端后全局生效。");
+    setMessage("热键已更新，请完全退出后重新打开 VoxType 以生效。");
   };
 
   const downloadModel = async (modelId: string) => {
+    const model = models.find((m) => m.id === modelId);
     setMessage(null);
     setBusyId(modelId);
-    setDownloadProgress(0);
-    setDownloadMessage("准备下载…");
+    setDownload({
+      percent: 0,
+      message: "准备下载…",
+      modelId,
+      modelName: model?.name ?? modelId,
+    });
     try {
       await invoke("download_model", { modelId });
-      setMessage("模型下载完成，已自动切换。");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
-      setDownloadProgress(null);
-      setDownloadMessage(null);
+      setDownload(null);
       setBusyId(null);
     }
   };
@@ -107,120 +132,156 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="app">
-      <h1>VoxType</h1>
-      <p className="sub">离线语音听写 — CapsWriter 同款引擎 · ModelScope 下载</p>
+  const runtimeLabel = status?.runtimeReady
+    ? "就绪"
+    : status?.runtimeRunning
+      ? "启动中"
+      : "未运行";
 
-      <div className="card">
-        <h2>状态</h2>
-        <div className="status">
-          识别服务：{" "}
-          <span className={status?.runtimeReady ? "ok" : "err"}>
-            {status?.runtimeReady
-              ? "就绪"
-              : status?.runtimeRunning
-                ? "启动中"
-                : "未运行"}
-          </span>
-        </div>
-        <div className="status">听写：{status?.dictationPhase ?? "—"}</div>
-        <div className="status">
-          当前模型：{status?.activeModelName ?? status?.activeModelId ?? "未选择"}
-        </div>
-        {status?.modelsCatalogSource && (
-          <div className="status" title={status.modelsCatalogPath}>
-            模型目录：{status.modelsCatalogSource === "bundled" ? "安装包内置" : status.modelsCatalogSource}
+  return (
+    <div className="app" ref={rootRef}>
+      <header className="app-header">
+        <div className="brand">
+          <div className="brand-icon" aria-hidden />
+          <div>
+            <h1>VoxType</h1>
+            <p className="sub">离线语音听写 · 按住热键说话</p>
           </div>
-        )}
-        <div className="row" style={{ marginTop: 12 }}>
-          <button type="button" onClick={() => void refresh()}>
+        </div>
+        <div className="header-actions">
+          <button type="button" className="ghost" onClick={() => void refresh()}>
             刷新
           </button>
           <button
             type="button"
-            className="secondary"
+            className="ghost"
             onClick={() => void invoke("restart_runtime").then(() => refresh())}
           >
-            重启识别服务
+            重启服务
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="card">
-        <h2>热键</h2>
-        <div className="row">
-          <label htmlFor="hotkey">按住说话</label>
-          <input
-            id="hotkey"
-            value={hotkey}
-            onChange={(e) => setHotkey(e.target.value)}
-            placeholder="F9"
-          />
-          <button type="button" onClick={() => void applyHotkey()}>
-            保存
-          </button>
-        </div>
-      </div>
-
-      <div className="card">
-        <h2>识别模型（与 CapsWriter 对齐）</h2>
-        <p className="status" style={{ marginBottom: 12 }}>
-          下载地址来自安装包内置 catalog；权重从 ModelScope 拉取。Fun-ASR / Qwen3 引擎开发中。
-        </p>
-        {models.map((m) => (
-          <div
-            key={m.id}
-            className={`model-item${m.active ? " active" : ""}${!m.supported ? " disabled" : ""}`}
-          >
-            <div className="model-head">
-              <strong>{m.name}</strong>
-              <span className="badges">
-                {m.active && <span className="badge on">使用中</span>}
-                {m.installed && !m.active && (
-                  <span className="badge ok">已安装</span>
-                )}
-                {!m.supported && <span className="badge soon">即将支持</span>}
-                {m.capsWriterType && (
-                  <span className="badge type">{m.capsWriterType}</span>
-                )}
+      <div className="layout">
+        <section className="card compact">
+          <h2>运行状态</h2>
+          <div className="stat-grid">
+            <div className="stat">
+              <span className="label">识别服务</span>
+              <span className={status?.runtimeReady ? "value ok" : "value warn"}>
+                {runtimeLabel}
+                {status?.runtimeWsPort ? ` · ${status.runtimeWsPort}` : ""}
               </span>
             </div>
-            <div className="status">{m.description}</div>
-            <div className="row" style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                disabled={!m.supported || busyId !== null}
-                onClick={() => void downloadModel(m.id)}
-              >
-                {m.installed ? "重新下载" : "下载"}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={
-                  !m.supported || !m.installed || m.active || busyId !== null
+            <div className="stat">
+              <span className="label">听写状态</span>
+              <span className="value">{status?.dictationPhase ?? "—"}</span>
+            </div>
+            <div className="stat">
+              <span className="label">当前模型</span>
+              <span className="value">
+                {status?.activeModelName ?? status?.activeModelId ?? "未选择"}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="label">目录来源</span>
+              <span className="value">
+                {status?.modelsCatalogSource === "bundled"
+                  ? "安装包内置"
+                  : (status?.modelsCatalogSource ?? "—")}
+              </span>
+            </div>
+          </div>
+          {status?.lastError && (
+            <p className="inline-alert err">{status.lastError}</p>
+          )}
+        </section>
+
+        <section className="card compact">
+          <h2>热键</h2>
+          <div className="form-grid">
+            <label htmlFor="hotkey">快捷键</label>
+            <input
+              id="hotkey"
+              value={hotkey}
+              onChange={(e) => setHotkey(e.target.value)}
+              placeholder="F9"
+            />
+            <label htmlFor="hotkeyMode">触发方式</label>
+            <div className="inline-field">
+              <select
+                id="hotkeyMode"
+                value={hotkeyMode}
+                onChange={(e) =>
+                  setHotkeyMode(e.target.value === "toggle" ? "toggle" : "hold")
                 }
-                onClick={() => void switchModel(m.id)}
               >
-                切换使用
+                <option value="hold">按住说话，松开结束</option>
+                <option value="toggle">按一下开始，再按一下结束</option>
+              </select>
+              <button type="button" onClick={() => void applyHotkey()}>
+                保存
               </button>
             </div>
           </div>
-        ))}
-        {downloadProgress !== null && (
-          <>
-            <div className="progress">
-              <span style={{ width: `${downloadProgress}%` }} />
-            </div>
-            {downloadMessage && (
-              <p className="status">{downloadMessage}</p>
-            )}
-          </>
-        )}
+          <p className="hint">悬浮窗在说话时显示实时识别文字，不抢焦点。</p>
+        </section>
+
+        <section className="card models-card">
+          <div className="section-head">
+            <h2>识别模型</h2>
+            <span className="hint">ModelScope 下载 · 支持断点续传</span>
+          </div>
+          <div className="model-grid">
+            {models.map((m) => (
+              <article
+                key={m.id}
+                className={`model-item${m.active ? " active" : ""}${!m.supported ? " disabled" : ""}`}
+              >
+                <div className="model-head">
+                  <strong>{m.name}</strong>
+                  <span className="badges">
+                    {m.active && <span className="badge on">使用中</span>}
+                    {m.installed && !m.active && (
+                      <span className="badge ok">已安装</span>
+                    )}
+                    {!m.supported && <span className="badge soon">即将支持</span>}
+                  </span>
+                </div>
+                <p className="model-desc">{m.description}</p>
+                <div className="model-actions">
+                  <button
+                    type="button"
+                    disabled={!m.supported || busyId !== null}
+                    onClick={() => void downloadModel(m.id)}
+                  >
+                    {m.installed ? "重新下载" : "下载"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={
+                      !m.supported || !m.installed || m.active || busyId !== null
+                    }
+                    onClick={() => void switchModel(m.id)}
+                  >
+                    切换
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
 
-      {message && <p className="status">{message}</p>}
+      {message && <p className="footer-msg">{message}</p>}
+
+      <DownloadToast
+        visible={download !== null}
+        modelName={download?.modelName ?? "模型"}
+        percent={download?.percent ?? 0}
+        message={download?.message ?? ""}
+      />
     </div>
   );
 }

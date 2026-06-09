@@ -5,8 +5,7 @@
     {
       "id": "sensevoice-int8",
       "name": "SenseVoice Small",
-      "description": "CapsWriter sensevoice · CPU 超快 · 自带标点 · 多语种",
-      "capsWriterType": "sensevoice",
+      "description": "CPU 超快 · 自带标点 · 多语种",
       "type": "sensevoice",
       "runtimePreset": "sensevoice",
       "layout": "sensevoice",
@@ -24,8 +23,7 @@
     {
       "id": "paraformer-zh-small",
       "name": "Paraformer 中文 Small",
-      "description": "CapsWriter paraformer · CPU 最快 · 无自动标点",
-      "capsWriterType": "paraformer",
+      "description": "CPU 最快 · 无自动标点",
       "type": "paraformer",
       "runtimePreset": "paraformer",
       "layout": "paraformer-zh",
@@ -46,8 +44,7 @@
     {
       "id": "paraformer-zh",
       "name": "Paraformer 中文 Large",
-      "description": "CapsWriter paraformer · 更高精度 · 无自动标点",
-      "capsWriterType": "paraformer",
+      "description": "更高精度 · 无自动标点",
       "type": "paraformer",
       "runtimePreset": "paraformer",
       "layout": "paraformer-zh-large",
@@ -66,8 +63,7 @@
     {
       "id": "paraformer-trilingual",
       "name": "Paraformer 中英粤",
-      "description": "CapsWriter paraformer · 普通话+英语+粤语 · 无自动标点",
-      "capsWriterType": "paraformer",
+      "description": "普通话+英语+粤语 · 无自动标点",
       "type": "paraformer",
       "runtimePreset": "paraformer",
       "layout": "paraformer-trilingual",
@@ -86,8 +82,7 @@
     {
       "id": "fun-asr-nano",
       "name": "Fun-ASR-Nano",
-      "description": "CapsWriter fun_asr_nano · 高精度 · 需 ONNX+GGUF 引擎（开发中）",
-      "capsWriterType": "fun_asr_nano",
+      "description": "高精度 · 需 ONNX+GGUF 引擎（开发中）",
       "type": "fun_asr_nano",
       "runtimePreset": "fun_asr_nano",
       "layout": "fun-asr-nano",
@@ -98,8 +93,7 @@
     {
       "id": "qwen-asr",
       "name": "Qwen3-ASR",
-      "description": "CapsWriter qwen_asr · 最高精度 · 需 ONNX+GGUF 引擎（开发中）",
-      "capsWriterType": "qwen_asr",
+      "description": "最高精度 · 需 ONNX+GGUF 引擎（开发中）",
       "type": "qwen_asr",
       "runtimePreset": "qwen_asr",
       "layout": "qwen-asr",

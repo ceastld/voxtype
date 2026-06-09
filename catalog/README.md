@@ -2,10 +2,10 @@
 
 **Model download URLs live in this file and ship inside the installer** at `<install-dir>/catalog/models.json`. The app never fetches a remote catalog; it only reads this bundled JSON (or a user override). **Speech model weights** are downloaded on first use via the embedded ModelScope URLs (`modelscopeResolveBase` + `modelscopeFiles`).
 
-## CapsWriter-aligned engines
+## Engine types
 
-| `capsWriterType` | VoxType status | Runtime |
-|------------------|----------------|---------|
+| `type` | VoxType status | Runtime |
+|--------|----------------|---------|
 | `sensevoice` | Supported | sherpa-onnx |
 | `paraformer` | Supported | sherpa-onnx |
 | `fun_asr_nano` | Planned | ONNX + GGUF |

@@ -5,28 +5,41 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_WS_PORT: u16 = 6016;
 pub const DEFAULT_API_PORT: u16 = 6020;
 pub const DEFAULT_HOTKEY: &str = "F9";
+pub const DEFAULT_HOTKEY_MODE: &str = "hold";
 pub const WS_SUBPROTOCOL: &str = "voxtype-voice-v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub hotkey: String,
+    /// "hold" = press to talk, release to stop; "toggle" = press start, press again stop
+    #[serde(default = "default_hotkey_mode")]
+    pub hotkey_mode: String,
     pub active_model_id: Option<String>,
     pub runtime_ws_port: u16,
     pub api_port: u16,
     pub strip_trailing_punctuation: bool,
 }
 
+fn default_hotkey_mode() -> String {
+    DEFAULT_HOTKEY_MODE.to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             hotkey: DEFAULT_HOTKEY.to_string(),
+            hotkey_mode: DEFAULT_HOTKEY_MODE.to_string(),
             active_model_id: Some("sensevoice-int8".to_string()),
             runtime_ws_port: DEFAULT_WS_PORT,
             api_port: DEFAULT_API_PORT,
             strip_trailing_punctuation: true,
         }
     }
+}
+
+pub fn runtime_log_path() -> PathBuf {
+    data_root().join("logs").join("runtime.log")
 }
 
 pub fn data_root() -> PathBuf {
@@ -71,7 +84,7 @@ pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     fs::write(settings_path(), raw).map_err(|e| e.to_string())
 }
 
-/// Installed NSIS layout: `<install-dir>/catalog/models.json` (bundled at build time).
+// Installed NSIS layout: <install-dir>/catalog/models.json (bundled at build time).
 pub fn bundled_catalog_path() -> Option<PathBuf> {
     install_dir().map(|parent| parent.join("catalog").join("models.json"))
 }
@@ -209,8 +222,6 @@ pub struct ModelCatalogEntry {
     pub model_type: String,
     pub layout: String,
     #[serde(default)]
-    pub caps_writer_type: Option<String>,
-    #[serde(default)]
     pub runtime_preset: Option<String>,
     #[serde(default = "default_true")]
     pub supported: bool,
@@ -221,7 +232,6 @@ impl ModelCatalogEntry {
     pub fn runtime_preset_or_type(&self) -> &str {
         self.runtime_preset
             .as_deref()
-            .or(self.caps_writer_type.as_deref())
             .unwrap_or(&self.model_type)
     }
 }
@@ -235,7 +245,6 @@ pub struct ModelStatusDto {
     pub supported: bool,
     pub installed: bool,
     pub active: bool,
-    pub caps_writer_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -303,7 +312,6 @@ pub fn list_model_statuses() -> Result<Vec<ModelStatusDto>, String> {
             supported: m.supported,
             installed: is_model_installed(m),
             active: active == Some(m.id.as_str()),
-            caps_writer_type: m.caps_writer_type.clone(),
         })
         .collect())
 }

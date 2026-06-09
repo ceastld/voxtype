@@ -2,7 +2,7 @@
 
 Offline voice dictation for Windows — hold a hotkey, speak, release to **type into the focused window**.
 
-Inspired by [CapsWriter-Offline](https://github.com/HaujetZhao/CapsWriter-Offline). ASR runtime uses [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (SenseVoice / Paraformer).
+ASR runtime uses [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (SenseVoice / Paraformer).
 
 ## Components
 
@@ -62,6 +62,10 @@ cd ../app && pnpm install && pnpm tauri build
 
 Install the `plugin/` package, bind a button to `VoxType.Plugin.Launcher.Start`.  
 Or use the bundled Quicker action (see `scripts/setup-quicker-action.ps1`).
+
+## Acknowledgments
+
+Hold-to-dictate interaction was influenced by [CapsWriter-Offline](https://github.com/HaujetZhao/CapsWriter-Offline).
 
 ## License
 

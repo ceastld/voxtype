@@ -2,6 +2,7 @@ mod audio_capture;
 mod dictation;
 mod http_api;
 mod model_download;
+mod overlay;
 mod runtime_process;
 mod settings;
 mod text_output;
@@ -14,7 +15,7 @@ use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, State, WindowEvent,
+    AppHandle, Manager, State, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
@@ -43,6 +44,11 @@ fn set_hotkey(hotkey: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_hotkey_mode(mode: String) -> Result<(), String> {
+    dictation::update_hotkey_mode_setting(&mode)
+}
+
+#[tauri::command]
 async fn download_model(app: AppHandle, model_id: String) -> Result<(), String> {
     model_download::download_model(&app, &model_id).await
 }
@@ -58,20 +64,52 @@ fn restart_runtime(state: State<'_, AppState>) -> Result<(), String> {
     state.inner().dictation.restart_runtime()
 }
 
+#[tauri::command]
+async fn dictation_start(state: State<'_, AppState>) -> Result<(), String> {
+    state.inner().dictation.ensure_runtime().await?;
+    state.inner().dictation.start_recording().await
+}
+
+#[tauri::command]
+async fn dictation_stop(state: State<'_, AppState>) -> Result<String, String> {
+    state.inner().dictation.stop_recording_and_type().await
+}
+
 fn register_hotkey(app: &AppHandle, dictation: Arc<DictationHandle>) -> Result<(), String> {
     let settings = load_settings();
     let hotkey = settings
         .hotkey
         .parse::<tauri_plugin_global_shortcut::Shortcut>()
         .map_err(|e| format!("无效热键 {}: {e}", settings.hotkey))?;
+    let mode = settings.hotkey_mode.clone();
 
     app.global_shortcut()
         .on_shortcut(hotkey, move |_app, _shortcut, event| {
             let dictation = Arc::clone(&dictation);
+            if mode == "toggle" {
+                if event.state != ShortcutState::Pressed {
+                    return;
+                }
+                let dictation = Arc::clone(&dictation);
+                tauri::async_runtime::spawn(async move {
+                    let _ = dictation.toggle().await;
+                });
+                return;
+            }
+
+            let dictation = Arc::clone(&dictation);
             if event.state == ShortcutState::Pressed {
-                let _ = dictation.start_recording();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = dictation.hold_begin().await {
+                        tracing::warn!("hotkey start: {e}");
+                    }
+                });
             } else if event.state == ShortcutState::Released {
-                let _ = dictation.stop_recording_and_type();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = dictation.hold_end().await {
+                        tracing::warn!("hotkey stop: {e}");
+                    }
+                });
             }
         })
         .map_err(|e| e.to_string())?;
@@ -112,9 +150,7 @@ pub fn run() {
         .setup(move |app| {
             dictation_for_setup.set_app(app.handle().clone());
 
-            if let Some(overlay) = app.get_webview_window("overlay") {
-                let _ = overlay.show();
-            }
+            overlay::prepare_overlay(&app.handle());
 
             let show_item = MenuItem::with_id(app, "show", "设置", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
@@ -149,8 +185,11 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            register_hotkey(&app.handle().clone(), Arc::clone(&dictation_for_setup))?;
-            let _ = app.emit("overlay-phase", "idle");
+            if let Err(e) =
+                register_hotkey(&app.handle().clone(), Arc::clone(&dictation_for_setup))
+            {
+                tracing::warn!("global hotkey disabled: {e}");
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -166,9 +205,12 @@ pub fn run() {
             load_models_catalog,
             list_models_status,
             set_hotkey,
+            set_hotkey_mode,
             download_model,
             activate_model,
             restart_runtime,
+            dictation_start,
+            dictation_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

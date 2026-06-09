@@ -42,6 +42,7 @@ async fn dictate_start(
     state
         .dictation
         .start_recording()
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(serde_json::json!({ "ok": true })))
 }
@@ -49,11 +50,12 @@ async fn dictate_start(
 async fn dictate_stop(
     State(state): State<Arc<ApiState>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    state
+    let text = state
         .dictation
         .stop_recording_and_type()
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    Ok(Json(serde_json::json!({ "ok": true })))
+    Ok(Json(serde_json::json!({ "ok": true, "text": text })))
 }
 
 async fn dictate_toggle(

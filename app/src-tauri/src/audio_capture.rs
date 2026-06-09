@@ -56,6 +56,14 @@ impl AudioCapture {
         })
     }
 
+    pub fn pcm_buffer(&self) -> Arc<Mutex<Vec<i16>>> {
+        Arc::clone(&self.pcm)
+    }
+
+    pub fn drain_new_pcm_bytes(&self) -> Vec<u8> {
+        self.drain_all_pcm_bytes()
+    }
+
     pub fn drain_all_pcm_bytes(&self) -> Vec<u8> {
         let samples = std::mem::take(&mut *self.pcm.lock().unwrap());
         samples
