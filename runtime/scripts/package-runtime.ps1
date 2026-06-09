@@ -33,7 +33,7 @@ if (-not $Version) {
 
 $PublishDir = Join-Path $Root "publish"
 New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
-$ZipName = "voice-asr-runtime-$Version-win-x64.zip"
+$ZipName = "voxtype-runtime-$Version-win-x64.zip"
 $ZipPath = Join-Path $PublishDir $ZipName
 if (Test-Path $ZipPath) {
     Remove-Item $ZipPath -Force

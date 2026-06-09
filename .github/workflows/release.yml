@@ -48,7 +48,7 @@ jobs:
           "is_model=$isModel" >> $env:GITHUB_OUTPUT
 
       - name: Setup uv
-        if: steps.meta.outputs.is_runtime == 'true'
+        if: steps.meta.outputs.is_runtime == 'true' || steps.meta.outputs.is_model == 'true'
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -100,6 +100,7 @@ jobs:
         shell: pwsh
         working-directory: runtime
         run: |
+          uv sync
           if (Test-Path ./scripts/package-model.ps1) {
             pwsh -NoProfile -File ./scripts/package-model.ps1
           } else {

@@ -26,7 +26,7 @@ if (-not (Test-Path (Join-Path $ModelDir "tokens.txt"))) {
 
 $PublishDir = Join-Path $Root "publish"
 New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
-$ZipName = 'voice-asr-model-sensevoice.zip'
+$ZipName = 'voxtype-model-sensevoice.zip'
 $ZipPath = Join-Path $PublishDir $ZipName
 if (Test-Path $ZipPath) {
     Remove-Item $ZipPath -Force
