@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../../scripts/prepare-tauri-build.ps1 && pnpm build",
+    "beforeBuildCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../scripts/prepare-tauri-build.ps1 && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
