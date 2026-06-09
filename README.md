@@ -34,13 +34,19 @@ pnpm tauri dev
 
 Data directory: `%LOCALAPPDATA%\VoxType\` (models, settings).
 
+## Model download
+
+Models are **not** shipped via GitHub Releases. The installer bundles `catalog/models.json` with **domestic mirror URLs** (e.g. Bitiful). Users download models from the VoxType settings UI on first use.
+
+Edit `catalog/models.json` before release to point at your CDN; the same file is attached to each GitHub Release for reference.
+
 ## Release
 
-Push tag `v0.1.0` → GitHub Actions builds runtime zip + NSIS installer.
+Push tag `v0.1.0` → GitHub Actions builds runtime zip + NSIS installer + attaches `catalog/models.json`.
 
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 ## Quicker integration

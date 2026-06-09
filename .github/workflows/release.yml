@@ -1,11 +1,11 @@
 name: Release VoxType
 
+# Runtime + installer only. Model URLs are configured in catalog/models.json (domestic mirrors).
+
 on:
   push:
     tags:
       - 'v*.*.*'
-      - 'model-sensevoice'
-      - 'model-paraformer'
   workflow_dispatch:
     inputs:
       tag:
@@ -38,17 +38,12 @@ jobs:
           } else {
             $tag = '${{ github.ref_name }}'.Trim()
           }
-          $isRuntime = $tag -match '^v\d'
-          $isModel = $tag -like 'model-*'
-          if (-not $isRuntime -and -not $isModel) { throw "Unsupported tag: $tag" }
-          $version = if ($isRuntime) { $tag.Substring(1) } else { '' }
+          if ($tag -notmatch '^v\d') { throw "Tag must look like v0.1.0, got: $tag" }
+          $version = $tag.Substring(1)
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
-          "is_runtime=$isRuntime" >> $env:GITHUB_OUTPUT
-          "is_model=$isModel" >> $env:GITHUB_OUTPUT
 
       - name: Setup uv
-        if: steps.meta.outputs.is_runtime == 'true' || steps.meta.outputs.is_model == 'true'
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -59,27 +54,18 @@ jobs:
           python-version: '3.12'
 
       - name: Build ASR runtime
-        if: steps.meta.outputs.is_runtime == 'true'
         shell: pwsh
         working-directory: runtime
         run: |
           pwsh -NoProfile -File ./scripts/build-win.ps1
-          if (Test-Path ./scripts/package-runtime.ps1) {
-            pwsh -NoProfile -File ./scripts/package-runtime.ps1 -Version '${{ steps.meta.outputs.version }}'
-          } else {
-            $ver = '${{ steps.meta.outputs.version }}'
-            $zip = "voxtype-runtime-$ver-win-x64.zip"
-            Compress-Archive -Path ./dist/voxtype-runtime/* -DestinationPath "./publish/$zip" -Force
-          }
+          pwsh -NoProfile -File ./scripts/package-runtime.ps1 -Version '${{ steps.meta.outputs.version }}'
 
       - name: Setup pnpm
-        if: steps.meta.outputs.is_runtime == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - name: Setup Node
-        if: steps.meta.outputs.is_runtime == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -87,34 +73,11 @@ jobs:
           cache-dependency-path: app/pnpm-lock.yaml
 
       - name: Build Tauri installer
-        if: steps.meta.outputs.is_runtime == 'true'
         shell: pwsh
         working-directory: app
         run: |
-          if (-not (Test-Path pnpm-lock.yaml)) { pnpm install }
-          else { pnpm install --frozen-lockfile }
+          pnpm install --frozen-lockfile
           pnpm tauri build
-
-      - name: Package model zip
-        if: steps.meta.outputs.is_model == 'true'
-        shell: pwsh
-        working-directory: runtime
-        run: |
-          uv sync
-          if (Test-Path ./scripts/package-model.ps1) {
-            pwsh -NoProfile -File ./scripts/package-model.ps1
-          } else {
-            $name = switch ('${{ steps.meta.outputs.tag }}') {
-              'model-sensevoice' { 'voxtype-model-sensevoice.zip' }
-              'model-paraformer' { 'voxtype-model-paraformer-zh.zip' }
-              default { throw 'unknown model tag' }
-            }
-            $src = switch ('${{ steps.meta.outputs.tag }}') {
-              'model-sensevoice' { './models/sensevoice' }
-              'model-paraformer' { './models/paraformer-zh' }
-            }
-            Compress-Archive -Path "$src/*" -DestinationPath "./publish/$name" -Force
-          }
 
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v2
@@ -122,6 +85,7 @@ jobs:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: VoxType ${{ steps.meta.outputs.tag }}
           files: |
-            runtime/publish/*
+            runtime/publish/voxtype-runtime-${{ steps.meta.outputs.version }}-win-x64.zip
             app/src-tauri/target/release/bundle/nsis/*.exe
-          fail_on_unmatched_files: false
+            catalog/models.json
+          fail_on_unmatched_files: true

@@ -75,18 +75,21 @@ pub fn catalog_path() -> PathBuf {
     if let Ok(p) = std::env::var("VOXTYPE_MODELS_CATALOG") {
         return PathBuf::from(p);
     }
-    // Dev: repo catalog; release: bundled next to exe
-    let exe = std::env::current_exe().ok();
-    if let Some(exe) = exe {
-        let bundled = exe
-            .parent()
-            .map(|p| p.join("catalog").join("models.json"));
-        if let Some(b) = bundled {
-            if b.exists() {
-                return b;
+    // User override (edit without reinstall)
+    let user_catalog = data_root().join("catalog").join("models.json");
+    if user_catalog.exists() {
+        return user_catalog;
+    }
+    // Release: bundled next to exe
+    if let Some(exe) = std::env::current_exe().ok() {
+        if let Some(parent) = exe.parent() {
+            let bundled = parent.join("catalog").join("models.json");
+            if bundled.exists() {
+                return bundled;
             }
         }
     }
+    // Dev: repo catalog
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
@@ -97,10 +100,40 @@ pub fn catalog_path() -> PathBuf {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelDownloadSpec {
+    /// Primary download URL (use domestic mirror in catalog).
     pub url: String,
+    #[serde(default)]
+    pub mirror_url: Option<String>,
+    #[serde(default)]
+    pub fallback_urls: Vec<String>,
     pub sha256: Option<String>,
     #[serde(default)]
     pub size_bytes: Option<u64>,
+}
+
+impl ModelDownloadSpec {
+    /// Ordered URLs: mirror → primary → fallbacks (deduped).
+    pub fn candidate_urls(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        if let Some(mirror) = &self.mirror_url {
+            push_unique(&mut out, mirror);
+        }
+        push_unique(&mut out, &self.url);
+        for u in &self.fallback_urls {
+            push_unique(&mut out, u);
+        }
+        out
+    }
+}
+
+fn push_unique(out: &mut Vec<String>, url: &str) {
+    let t = url.trim();
+    if t.is_empty() {
+        return;
+    }
+    if !out.iter().any(|x| x == t) {
+        out.push(t.to_string());
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

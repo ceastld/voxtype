@@ -1,31 +1,19 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "notes": "Bundled with VoxType installer. Edit and restart to change model download sources (domestic mirrors preferred).",
   "models": [
     {
       "id": "sensevoice-int8",
       "name": "SenseVoice 中文（推荐）",
-      "description": "Offline Chinese ASR with punctuation (~160 MB)",
+      "description": "离线中文识别，带标点（约 160 MB）",
       "type": "sensevoice",
       "default": true,
+      "layout": "sensevoice",
       "download": {
-        "url": "https://github.com/ceastld/voxtype/releases/download/model-sensevoice/voxtype-model-sensevoice.zip",
-        "sha256": null,
+        "url": "https://s3.bitiful.net/quicker-pkgs/quicker-rpc/voice-asr/voice-asr-model-sensevoice.zip",
+        "sha256": "6cdd906279c3d2dcb76f4e5f5e9d1b7648d95cf32ddfe27c8924b344d9392e99",
         "sizeBytes": 167772160
-      },
-      "layout": "sensevoice"
-    },
-    {
-      "id": "paraformer-zh-small",
-      "name": "Paraformer 中文轻量",
-      "description": "Smaller Chinese model, no auto punctuation",
-      "type": "paraformer",
-      "default": false,
-      "download": {
-        "url": "https://github.com/ceastld/voxtype/releases/download/model-paraformer/voxtype-model-paraformer-zh.zip",
-        "sha256": null,
-        "sizeBytes": 83886080
-      },
-      "layout": "paraformer-zh"
+      }
     }
   ]
 }
