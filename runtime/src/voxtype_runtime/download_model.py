@@ -22,6 +22,16 @@ SENSEVOICE_ARCHIVE_URL = (
 SENSEVOICE_MODELSCOPE_RESOLVE = (
     "https://www.modelscope.cn/models/pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue/resolve/master"
 )
+PARAFORMER_MODELSCOPE_RESOLVE = (
+    "https://www.modelscope.cn/models/pengzhendong/sherpa-onnx-paraformer-zh-small/resolve/master"
+)
+PARAFORMER_MODELSCOPE_FILES = (
+    "model.int8.onnx",
+    "model.onnx",
+    "tokens.txt",
+    "am.mvn",
+    "config.yaml",
+)
 
 MODEL_PRESETS: dict[str, dict[str, str]] = {
     "sensevoice": {
@@ -66,7 +76,7 @@ _configure_stdio_utf8()
 
 
 def report_download_progress(percent: int, message: str) -> None:
-    """Machine-readable progress for QuickerAgent host (stdout)."""
+    """Machine-readable progress for VoxType host (stdout)."""
     _configure_stdio_utf8()
     pct = max(0, min(100, int(percent)))
     print(f"{PROGRESS_MARKER}\t{pct}\t{message}", flush=True)
@@ -368,7 +378,7 @@ def download_sensevoice_from_archive(dest: Path) -> None:
     archive_url = str(identity.get("upstream") or SENSEVOICE_ARCHIVE_URL)
     print(f"Fetching {identity['label']} from k2-fsa archive ({identity['id']})")
     archive_name = archive_url.rsplit("/", maxsplit=1)[-1]
-    with tempfile.TemporaryDirectory(prefix="quicker-voice-model-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="voxtype-model-") as tmp:
         archive = Path(tmp) / archive_name
         download_archive(archive_url, archive)
         extract_model(archive, dest)
@@ -421,7 +431,7 @@ def ensure_asr_model(
     report_download_progress(2, f"准备下载 {preset_info['label']}…")
     print(f"Fetching {preset_info['label']}")
     archive_name = preset_info["url"].rsplit("/", maxsplit=1)[-1]
-    with tempfile.TemporaryDirectory(prefix="quicker-voice-model-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="voxtype-model-") as tmp:
         archive = Path(tmp) / archive_name
         download_archive(preset_info["url"], archive)
         extract_model(archive, dest)
@@ -446,7 +456,7 @@ def check_main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
 
-    parser = argparse.ArgumentParser(description="Check QuickerAgent ASR model integrity")
+    parser = argparse.ArgumentParser(description="Check VoxType ASR model integrity")
     parser.add_argument("--root", type=Path, default=None, help="Plugin data root")
     parser.add_argument("--preset", default=None, help="sensevoice | paraformer")
     args = parser.parse_args(argv)
@@ -467,7 +477,7 @@ def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
 
-    parser = argparse.ArgumentParser(description="Download QuickerAgent ASR model")
+    parser = argparse.ArgumentParser(description="Download VoxType ASR model")
     parser.add_argument("--force", action="store_true", help="Remove existing model and re-download")
     parser.add_argument("--preset", default=None, help="sensevoice | paraformer")
     parser.add_argument("--root", type=Path, default=None, help="Plugin data root")

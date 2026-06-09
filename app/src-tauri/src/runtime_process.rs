@@ -55,12 +55,14 @@ impl RuntimeProcess {
             ));
         }
 
-        let model_dir = resolve_active_model_dir(&settings)?;
+        let (model_dir, model_type) = resolve_active_model_dir(&settings)?;
         let mut cmd = Command::new(&exe);
         cmd.arg("--port")
             .arg(settings.runtime_ws_port.to_string())
             .arg("--model-dir")
-            .arg(&model_dir);
+            .arg(&model_dir)
+            .arg("--model-type")
+            .arg(&model_type);
         cmd.stdout(Stdio::null()).stderr(Stdio::null());
         #[cfg(windows)]
         cmd.creation_flags(CREATE_NO_WINDOW);
@@ -85,7 +87,7 @@ impl RuntimeProcess {
 
 fn resolve_active_model_dir(
     settings: &crate::settings::AppSettings,
-) -> Result<std::path::PathBuf, String> {
+) -> Result<(std::path::PathBuf, String), String> {
     let catalog = load_catalog()?;
     let active_id = settings
         .active_model_id
@@ -97,9 +99,12 @@ fn resolve_active_model_dir(
         .iter()
         .find(|m| m.id == active_id)
         .ok_or_else(|| format!("未知模型: {active_id}"))?;
+    if !entry.supported {
+        return Err(format!("「{}」尚未支持，请切换其他模型", entry.name));
+    }
     let dir = model_dir_for_id(&entry.id, &entry.layout);
     if !dir.exists() {
         return Err(format!("模型目录不存在: {dir:?} — 请先在设置中下载模型"));
     }
-    Ok(dir)
+    Ok((dir, entry.runtime_preset_or_type().to_string()))
 }

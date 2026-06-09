@@ -253,11 +253,18 @@ pub fn update_hotkey_setting(hotkey: &str) -> Result<(), String> {
 pub async fn build_status(handle: &DictationHandle) -> serde_json::Value {
     let settings: AppSettings = load_settings();
     let ready = handle.runtime_ready().await;
+    let active_name = settings.active_model_id.as_ref().and_then(|id| {
+        crate::settings::load_catalog()
+            .ok()
+            .and_then(|c| c.models.into_iter().find(|m| &m.id == id))
+            .map(|m| m.name)
+    });
     serde_json::json!({
         "runtimeRunning": handle.runtime_running(),
         "runtimeReady": ready,
         "dictationPhase": handle.phase().as_str(),
         "activeModelId": settings.active_model_id,
+        "activeModelName": active_name,
         "hotkey": settings.hotkey,
     })
 }

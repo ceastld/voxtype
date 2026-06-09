@@ -121,3 +121,48 @@ button:disabled {
 .model-item.active {
   border-color: #4f8cff;
 }
+
+.model-item.disabled {
+  opacity: 0.72;
+}
+
+.model-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a2f3a;
+  color: #9aa0a6;
+}
+
+.badge.on {
+  background: #1e3a5f;
+  color: #8ab4ff;
+}
+
+.badge.ok {
+  background: #1a3328;
+  color: #6dd58c;
+}
+
+.badge.soon {
+  background: #3a2f1a;
+  color: #fdd663;
+}
+
+.badge.type {
+  font-family: ui-monospace, monospace;
+}

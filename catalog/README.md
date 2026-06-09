@@ -1,22 +1,33 @@
 # Model catalog (`models.json`)
 
-Bundled into the VoxType installer and attached to each app release.
+Bundled with the VoxType installer. **Downloads use ModelScope** (`modelscopeResolveBase` + `modelscopeFiles`).
 
-## Fields
+## CapsWriter-aligned engines
 
-| Field | Description |
-|-------|-------------|
-| `download.url` | Primary URL — use a **domestic CDN** (e.g. Bitiful S3) |
-| `download.mirrorUrl` | Optional; tried before `url` |
-| `download.fallbackUrls` | Optional extra mirrors |
-| `download.sha256` | Optional integrity check |
+| `capsWriterType` | VoxType status | Runtime |
+|------------------|----------------|---------|
+| `sensevoice` | Supported | sherpa-onnx |
+| `paraformer` | Supported | sherpa-onnx |
+| `fun_asr_nano` | Planned | ONNX + GGUF |
+| `qwen_asr` | Planned | ONNX + GGUF |
+
+## Example entry
+
+```json
+{
+  "id": "sensevoice-int8",
+  "supported": true,
+  "download": {
+    "source": "modelscope",
+    "modelscopeResolveBase": "https://www.modelscope.cn/models/pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue/resolve/master",
+    "modelscopeFiles": [
+      { "name": "model.int8.onnx", "required": true },
+      { "name": "tokens.txt", "required": true }
+    ]
+  }
+}
+```
 
 ## Override without reinstall
 
 Copy to `%LOCALAPPDATA%\VoxType\catalog\models.json` and restart VoxType.
-
-## Release checklist
-
-1. Upload model zip to your CDN.
-2. Update `sha256` and `url` in this file.
-3. Tag `v*.*.*` — CI ships installer + this JSON on GitHub Release.

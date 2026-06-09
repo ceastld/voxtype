@@ -7,48 +7,58 @@ type AppStatus = {
   runtimeReady: boolean;
   dictationPhase: string;
   activeModelId: string | null;
+  activeModelName?: string | null;
   hotkey: string;
 };
 
-type ModelEntry = {
+type ModelStatus = {
   id: string;
   name: string;
   description: string;
-  default?: boolean;
-};
-
-type ModelsCatalog = {
-  models: ModelEntry[];
+  supported: boolean;
+  installed: boolean;
+  active: boolean;
+  capsWriterType?: string | null;
 };
 
 export default function App() {
   const [status, setStatus] = useState<AppStatus | null>(null);
-  const [catalog, setCatalog] = useState<ModelEntry[]>([]);
+  const [models, setModels] = useState<ModelStatus[]>([]);
   const [hotkey, setHotkey] = useState("F9");
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refreshModels = useCallback(async () => {
+    const list = await invoke<ModelStatus[]>("list_models_status");
+    setModels(list);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
       const s = await invoke<AppStatus>("get_app_status");
       setStatus(s);
       setHotkey(s.hotkey);
+      await refreshModels();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [refreshModels]);
 
   useEffect(() => {
     void refresh();
-    void invoke<ModelsCatalog>("load_models_catalog").then((c) =>
-      setCatalog(c.models),
-    );
-    const unlisten = listen<{ percent: number }>(
+    const unlisten = listen<{ percent: number; message?: string }>(
       "model-download-progress",
-      (ev) => setDownloadProgress(ev.payload.percent),
+      (ev) => {
+        setDownloadProgress(ev.payload.percent);
+        if (ev.payload.message) setDownloadMessage(ev.payload.message);
+      },
     );
     const unlistenDone = listen("model-download-done", () => {
       setDownloadProgress(null);
+      setDownloadMessage(null);
+      setBusyId(null);
       void refresh();
     });
     return () => {
@@ -66,27 +76,39 @@ export default function App() {
 
   const downloadModel = async (modelId: string) => {
     setMessage(null);
+    setBusyId(modelId);
     setDownloadProgress(0);
+    setDownloadMessage("准备下载…");
     try {
       await invoke("download_model", { modelId });
-      setMessage("模型下载完成。");
+      setMessage("模型下载完成，已自动切换。");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
       setDownloadProgress(null);
+      setDownloadMessage(null);
+      setBusyId(null);
     }
   };
 
-  const activateModel = async (modelId: string) => {
+  const switchModel = async (modelId: string) => {
     setMessage(null);
-    await invoke("activate_model", { modelId });
-    await refresh();
-    setMessage("已切换模型，正在重启识别服务…");
+    setBusyId(modelId);
+    try {
+      await invoke("activate_model", { modelId });
+      await invoke("restart_runtime");
+      await refresh();
+      setMessage("已切换模型并重启识别服务。");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
     <div className="app">
       <h1>VoxType</h1>
-      <p className="sub">离线语音听写 — 按住热键说话，松手直接上屏</p>
+      <p className="sub">离线语音听写 — CapsWriter 同款引擎 · ModelScope 下载</p>
 
       <div className="card">
         <h2>状态</h2>
@@ -102,7 +124,7 @@ export default function App() {
         </div>
         <div className="status">听写：{status?.dictationPhase ?? "—"}</div>
         <div className="status">
-          当前模型：{status?.activeModelId ?? "未选择"}
+          当前模型：{status?.activeModelName ?? status?.activeModelId ?? "未选择"}
         </div>
         <div className="row" style={{ marginTop: 12 }}>
           <button type="button" onClick={() => void refresh()}>
@@ -111,7 +133,7 @@ export default function App() {
           <button
             type="button"
             className="secondary"
-            onClick={() => void invoke("restart_runtime")}
+            onClick={() => void invoke("restart_runtime").then(() => refresh())}
           >
             重启识别服务
           </button>
@@ -132,36 +154,62 @@ export default function App() {
             保存
           </button>
         </div>
-        <p className="status">默认 F9；松开热键后文字输入到当前焦点窗口。</p>
       </div>
 
       <div className="card">
-        <h2>模型</h2>
-        {catalog.map((m) => (
+        <h2>识别模型（与 CapsWriter 对齐）</h2>
+        <p className="status" style={{ marginBottom: 12 }}>
+          从 ModelScope 下载；已安装模型可一键切换。Fun-ASR / Qwen3 引擎开发中。
+        </p>
+        {models.map((m) => (
           <div
             key={m.id}
-            className={`model-item${status?.activeModelId === m.id ? " active" : ""}`}
+            className={`model-item${m.active ? " active" : ""}${!m.supported ? " disabled" : ""}`}
           >
-            <strong>{m.name}</strong>
+            <div className="model-head">
+              <strong>{m.name}</strong>
+              <span className="badges">
+                {m.active && <span className="badge on">使用中</span>}
+                {m.installed && !m.active && (
+                  <span className="badge ok">已安装</span>
+                )}
+                {!m.supported && <span className="badge soon">即将支持</span>}
+                {m.capsWriterType && (
+                  <span className="badge type">{m.capsWriterType}</span>
+                )}
+              </span>
+            </div>
             <div className="status">{m.description}</div>
             <div className="row" style={{ marginTop: 8 }}>
-              <button type="button" onClick={() => void downloadModel(m.id)}>
-                下载
+              <button
+                type="button"
+                disabled={!m.supported || busyId !== null}
+                onClick={() => void downloadModel(m.id)}
+              >
+                {m.installed ? "重新下载" : "下载"}
               </button>
               <button
                 type="button"
                 className="secondary"
-                onClick={() => void activateModel(m.id)}
+                disabled={
+                  !m.supported || !m.installed || m.active || busyId !== null
+                }
+                onClick={() => void switchModel(m.id)}
               >
-                启用
+                切换使用
               </button>
             </div>
           </div>
         ))}
         {downloadProgress !== null && (
-          <div className="progress">
-            <span style={{ width: `${downloadProgress}%` }} />
-          </div>
+          <>
+            <div className="progress">
+              <span style={{ width: `${downloadProgress}%` }} />
+            </div>
+            {downloadMessage && (
+              <p className="status">{downloadMessage}</p>
+            )}
+          </>
         )}
       </div>
 

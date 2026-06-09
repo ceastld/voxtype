@@ -1,19 +1,71 @@
 {
-  "schemaVersion": 2,
-  "notes": "Bundled with VoxType installer. Edit and restart to change model download sources (domestic mirrors preferred).",
+  "schemaVersion": 3,
+  "notes": "ModelScope-first. Override: %LOCALAPPDATA%\\VoxType\\catalog\\models.json",
   "models": [
     {
       "id": "sensevoice-int8",
-      "name": "SenseVoice 中文（推荐）",
-      "description": "离线中文识别，带标点（约 160 MB）",
+      "name": "SenseVoice Small",
+      "description": "CapsWriter sensevoice · CPU 超快 · 自带标点 · 多语种",
+      "capsWriterType": "sensevoice",
       "type": "sensevoice",
-      "default": true,
+      "runtimePreset": "sensevoice",
       "layout": "sensevoice",
+      "supported": true,
+      "default": true,
       "download": {
-        "url": "https://s3.bitiful.net/quicker-pkgs/quicker-rpc/voice-asr/voice-asr-model-sensevoice.zip",
-        "sha256": "6cdd906279c3d2dcb76f4e5f5e9d1b7648d95cf32ddfe27c8924b344d9392e99",
-        "sizeBytes": 167772160
+        "source": "modelscope",
+        "modelscopeResolveBase": "https://www.modelscope.cn/models/pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue/resolve/master",
+        "modelscopeFiles": [
+          { "name": "model.int8.onnx", "size": 239233841, "required": true },
+          { "name": "tokens.txt", "size": 315894, "required": true }
+        ]
       }
+    },
+    {
+      "id": "paraformer-zh-small",
+      "name": "Paraformer 中文",
+      "description": "CapsWriter paraformer · CPU 最快 · 无自动标点",
+      "capsWriterType": "paraformer",
+      "type": "paraformer",
+      "runtimePreset": "paraformer",
+      "layout": "paraformer-zh",
+      "supported": true,
+      "default": false,
+      "download": {
+        "source": "modelscope",
+        "modelscopeResolveBase": "https://www.modelscope.cn/models/pengzhendong/sherpa-onnx-paraformer-zh-small/resolve/master",
+        "modelscopeFiles": [
+          { "name": "model.int8.onnx", "required": false },
+          { "name": "model.onnx", "required": true },
+          { "name": "tokens.txt", "required": true },
+          { "name": "am.mvn", "required": true },
+          { "name": "config.yaml", "required": true }
+        ]
+      }
+    },
+    {
+      "id": "fun-asr-nano",
+      "name": "Fun-ASR-Nano",
+      "description": "CapsWriter fun_asr_nano · 高精度 · 需 ONNX+GGUF 引擎（开发中）",
+      "capsWriterType": "fun_asr_nano",
+      "type": "fun_asr_nano",
+      "runtimePreset": "fun_asr_nano",
+      "layout": "fun-asr-nano",
+      "supported": false,
+      "default": false,
+      "download": { "source": "modelscope" }
+    },
+    {
+      "id": "qwen-asr",
+      "name": "Qwen3-ASR",
+      "description": "CapsWriter qwen_asr · 最高精度 · 需 ONNX+GGUF 引擎（开发中）",
+      "capsWriterType": "qwen_asr",
+      "type": "qwen_asr",
+      "runtimePreset": "qwen_asr",
+      "layout": "qwen-asr",
+      "supported": false,
+      "default": false,
+      "download": { "source": "modelscope" }
     }
   ]
 }

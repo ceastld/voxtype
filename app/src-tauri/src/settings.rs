@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const DEFAULT_WS_PORT: u16 = 6016;
 pub const DEFAULT_API_PORT: u16 = 6020;
@@ -47,7 +47,7 @@ pub fn models_dir() -> PathBuf {
     data_root().join("models")
 }
 
-pub fn model_dir_for_id(model_id: &str, layout: &str) -> PathBuf {
+pub fn model_dir_for_id(_model_id: &str, layout: &str) -> PathBuf {
     models_dir().join(layout)
 }
 
@@ -75,12 +75,10 @@ pub fn catalog_path() -> PathBuf {
     if let Ok(p) = std::env::var("VOXTYPE_MODELS_CATALOG") {
         return PathBuf::from(p);
     }
-    // User override (edit without reinstall)
     let user_catalog = data_root().join("catalog").join("models.json");
     if user_catalog.exists() {
         return user_catalog;
     }
-    // Release: bundled next to exe
     if let Some(exe) = std::env::current_exe().ok() {
         if let Some(parent) = exe.parent() {
             let bundled = parent.join("catalog").join("models.json");
@@ -89,7 +87,6 @@ pub fn catalog_path() -> PathBuf {
             }
         }
     }
-    // Dev: repo catalog
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
@@ -99,26 +96,58 @@ pub fn catalog_path() -> PathBuf {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ModelScopeFileSpec {
+    pub name: String,
+    #[serde(default)]
+    pub size: Option<u64>,
+    #[serde(default)]
+    pub sha256: Option<String>,
+    #[serde(default = "default_true")]
+    pub required: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModelDownloadSpec {
-    /// Primary download URL (use domestic mirror in catalog).
-    pub url: String,
+    #[serde(default = "default_source_zip")]
+    pub source: String,
+    #[serde(default)]
+    pub url: Option<String>,
     #[serde(default)]
     pub mirror_url: Option<String>,
     #[serde(default)]
     pub fallback_urls: Vec<String>,
+    #[serde(default)]
+    pub modelscope_resolve_base: Option<String>,
+    #[serde(default)]
+    pub modelscope_files: Vec<ModelScopeFileSpec>,
+    #[serde(default)]
     pub sha256: Option<String>,
     #[serde(default)]
     pub size_bytes: Option<u64>,
 }
 
+fn default_source_zip() -> String {
+    "zip".to_string()
+}
+
 impl ModelDownloadSpec {
-    /// Ordered URLs: mirror → primary → fallbacks (deduped).
-    pub fn candidate_urls(&self) -> Vec<String> {
+    pub fn is_modelscope(&self) -> bool {
+        self.source.eq_ignore_ascii_case("modelscope")
+    }
+
+    pub fn candidate_zip_urls(&self) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         if let Some(mirror) = &self.mirror_url {
             push_unique(&mut out, mirror);
         }
-        push_unique(&mut out, &self.url);
+        if let Some(url) = &self.url {
+            push_unique(&mut out, url);
+        }
         for u in &self.fallback_urls {
             push_unique(&mut out, u);
         }
@@ -147,11 +176,40 @@ pub struct ModelCatalogEntry {
     #[serde(rename = "type")]
     pub model_type: String,
     pub layout: String,
+    #[serde(default)]
+    pub caps_writer_type: Option<String>,
+    #[serde(default)]
+    pub runtime_preset: Option<String>,
+    #[serde(default = "default_true")]
+    pub supported: bool,
     pub download: ModelDownloadSpec,
+}
+
+impl ModelCatalogEntry {
+    pub fn runtime_preset_or_type(&self) -> &str {
+        self.runtime_preset
+            .as_deref()
+            .or(self.caps_writer_type.as_deref())
+            .unwrap_or(&self.model_type)
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelStatusDto {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub supported: bool,
+    pub installed: bool,
+    pub active: bool,
+    pub caps_writer_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ModelsCatalog {
+    #[serde(default)]
+    pub schema_version: u32,
     pub models: Vec<ModelCatalogEntry>,
 }
 
@@ -159,6 +217,45 @@ pub fn load_catalog() -> Result<ModelsCatalog, String> {
     let path = catalog_path();
     let raw = fs::read_to_string(&path).map_err(|e| format!("catalog read failed ({path:?}): {e}"))?;
     serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+pub fn find_catalog_entry(model_id: &str) -> Result<ModelCatalogEntry, String> {
+    let catalog = load_catalog()?;
+    catalog
+        .models
+        .iter()
+        .find(|m| m.id == model_id)
+        .cloned()
+        .ok_or_else(|| format!("未知模型: {model_id}"))
+}
+
+pub fn is_model_installed(entry: &ModelCatalogEntry) -> bool {
+    let dir = model_dir_for_id(&entry.id, &entry.layout);
+    if !dir.is_dir() {
+        return false;
+    }
+    let has_tokens = dir.join("tokens.txt").is_file();
+    let has_onnx = dir.join("model.int8.onnx").is_file() || dir.join("model.onnx").is_file();
+    has_tokens && has_onnx
+}
+
+pub fn list_model_statuses() -> Result<Vec<ModelStatusDto>, String> {
+    let catalog = load_catalog()?;
+    let settings = load_settings();
+    let active = settings.active_model_id.as_deref();
+    Ok(catalog
+        .models
+        .iter()
+        .map(|m| ModelStatusDto {
+            id: m.id.clone(),
+            name: m.name.clone(),
+            description: m.description.clone(),
+            supported: m.supported,
+            installed: is_model_installed(m),
+            active: active == Some(m.id.as_str()),
+            caps_writer_type: m.caps_writer_type.clone(),
+        })
+        .collect())
 }
 
 pub fn runtime_exe_path() -> PathBuf {
@@ -179,4 +276,14 @@ pub fn runtime_exe_path() -> PathBuf {
         .ok()
         .and_then(|exe| exe.parent().map(|p| p.join("runtime").join("voxtype-runtime.exe")))
         .unwrap_or(dev)
+}
+
+#[allow(dead_code)]
+pub fn model_layout_path(layout: &str) -> PathBuf {
+    models_dir().join(layout)
+}
+
+#[allow(dead_code)]
+pub fn tokens_exists(dir: &Path) -> bool {
+    dir.join("tokens.txt").is_file()
 }

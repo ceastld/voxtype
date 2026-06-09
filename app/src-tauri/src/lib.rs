@@ -33,6 +33,11 @@ fn load_models_catalog() -> Result<settings::ModelsCatalog, String> {
 }
 
 #[tauri::command]
+fn list_models_status() -> Result<Vec<settings::ModelStatusDto>, String> {
+    settings::list_model_statuses()
+}
+
+#[tauri::command]
 fn set_hotkey(hotkey: String) -> Result<(), String> {
     dictation::update_hotkey_setting(&hotkey)
 }
@@ -159,6 +164,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_app_status,
             load_models_catalog,
+            list_models_status,
             set_hotkey,
             download_model,
             activate_model,

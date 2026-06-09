@@ -56,15 +56,6 @@ impl AudioCapture {
         })
     }
 
-    pub fn take_pcm_bytes(&self) -> Vec<u8> {
-        let samples = self.pcm.lock().unwrap().clone();
-        self.pcm.lock().unwrap().clear();
-        samples
-            .into_iter()
-            .flat_map(|s| s.to_le_bytes())
-            .collect()
-    }
-
     pub fn drain_all_pcm_bytes(&self) -> Vec<u8> {
         let samples = std::mem::take(&mut *self.pcm.lock().unwrap());
         samples
