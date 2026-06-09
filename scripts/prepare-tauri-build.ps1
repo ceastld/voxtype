@@ -64,19 +64,27 @@ if ($Version) {
         if (-not (Test-Path $item.Path)) {
             throw "Missing $($item.Path)"
         }
-        $raw = Get-Content $item.Path -Raw
+        $raw = (Get-Content $item.Path -Raw) -replace "`r`n", "`n"
         $updated = if ($item.Kind -eq "json") {
             $pattern = '(?m)^(\s*"version"\s*:\s*")[^"]*(")'
             if ($raw -notmatch $pattern) {
                 throw "version field not found in $($item.Path)"
             }
             $raw -replace $pattern, "`${1}$Version`${2}"
-        } else {
-            $pattern = '(?m)^version\s*=\s*".*"$'
+        } elseif ($item.Path -like '*Cargo.toml') {
+            $pattern = '(?ms)(^\[package\]\nname = "[^"]+"\nversion = ")[^"]*(")'
             if ($raw -notmatch $pattern) {
-                throw "version field not found in $($item.Path)"
+                throw "package version field not found in $($item.Path)"
             }
-            $raw -replace $pattern, "version = `"$Version`""
+            $raw -replace $pattern, "`${1}$Version`${2}"
+        } elseif ($item.Path -like '*pyproject.toml') {
+            $pattern = '(?ms)(^\[project\]\nname = "[^"]+"\nversion = ")[^"]*(")'
+            if ($raw -notmatch $pattern) {
+                throw "project version field not found in $($item.Path)"
+            }
+            $raw -replace $pattern, "`${1}$Version`${2}"
+        } else {
+            throw "Unsupported version target: $($item.Path)"
         }
         Set-Content $item.Path -Value $updated -Encoding utf8NoBOM -NoNewline
         Write-Host "    $($item.Path)" -ForegroundColor DarkGray
