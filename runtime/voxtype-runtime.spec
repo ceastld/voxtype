@@ -1,17 +1,18 @@
-# PyInstaller spec ‚Ä?voxtype-runtime (Windows x64, onedir)
+# PyInstaller spec ù?voxtype-runtime (Windows x64, onedir)
 # Run: uv run pyinstaller voxtype-runtime.spec
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 ROOT = Path(SPECPATH)
 ENTRY = ROOT / "packaging" / "runtime_entry.py"
 MODEL_IDENTITY = ROOT / "models" / "sensevoice-model-identity.json"
 
 sherpa_datas, sherpa_binaries, sherpa_hiddenimports = collect_all("sherpa_onnx")
+voxtype_hiddenimports = collect_submodules("voxtype_runtime")
 bundle_datas = [*sherpa_datas, (str(MODEL_IDENTITY), "models")]
 
 a = Analysis(
@@ -31,17 +32,7 @@ a = Analysis(
         "charset_normalizer",
         "idna",
         "numpy",
-        "voxtype_runtime",
-        "voxtype_runtime.__main__",
-        "voxtype_runtime.server",
-        "voxtype_runtime.session",
-        "voxtype_runtime.protocol",
-        "voxtype_runtime.config",
-        "voxtype_runtime.paths",
-        "voxtype_runtime.download_model",
-        "voxtype_runtime.recognizer",
-        "voxtype_runtime.recognizer.stub",
-        "voxtype_runtime.recognizer.sherpa_onnx",
+        *voxtype_hiddenimports,
     ],
     hookspath=[],
     hooksconfig={},

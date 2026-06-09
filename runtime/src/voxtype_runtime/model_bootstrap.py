@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from pathlib import Path
 
 from voxtype_runtime.config import RuntimeConfig
@@ -22,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 def _auto_download_enabled() -> bool:
     return os.environ.get("VOXTYPE_AUTO_DOWNLOAD_MODEL", "1") != "0"
+
+
+def _stub_allowed() -> bool:
+    return os.environ.get("VOXTYPE_ALLOW_STUB", "0") == "1"
 
 
 def _infer_preset(config: RuntimeConfig) -> str:
@@ -67,7 +70,7 @@ def resolve_runtime_model(config: RuntimeConfig) -> RuntimeConfig:
         remove_model_dir(dest)
 
     if auto:
-        logger.info("Repairing ASR model (preset=%s)�?, preset)
+        logger.info("Repairing ASR model (preset=%s)...", preset)
         root = _plugin_root_for_dir(dest) if config.model_dir else plugin_root
         repaired = ensure_asr_model(root, preset=preset, force=False)
         ready, err = describe_model_status(repaired, preset=preset)
@@ -85,8 +88,20 @@ def resolve_runtime_model(config: RuntimeConfig) -> RuntimeConfig:
             log_level=config.log_level,
         )
 
-    message = err or "模型未安装或不完�?
+    message = err or "model not installed or incomplete"
     if has_partial:
-        message = f"{message}。请在语音设置中重新下载模型�?
+        message = f"{message}; re-download the model in VoxType settings"
+    if _stub_allowed():
+        logger.warning("ASR model unavailable; starting stub recognizer: %s", message)
+        return RuntimeConfig(
+            host=config.host,
+            port=config.port,
+            transport=config.transport,
+            model_dir=None,
+            model_type=config.model_type or preset,
+            provider=config.provider,
+            num_threads=config.num_threads,
+            log_level=config.log_level,
+        )
     logger.error("ASR model unavailable: %s", message)
     raise SystemExit(1)
