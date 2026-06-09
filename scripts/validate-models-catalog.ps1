@@ -10,6 +10,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if (-not [System.IO.Path]::IsPathRooted($CatalogPath)) {
+    $CatalogPath = Join-Path (Get-Location) $CatalogPath
+}
+
 if (-not (Test-Path $CatalogPath)) {
     throw "Missing catalog: $CatalogPath"
 }

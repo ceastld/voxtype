@@ -12,7 +12,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $RuntimeDist = Join-Path $Root "runtime" "dist" "voxtype-runtime"
 $RuntimeExe = Join-Path $RuntimeDist "voxtype-runtime.exe"
 $StageRoot = Join-Path $Root "app" "src-tauri" "bundle-resources"
