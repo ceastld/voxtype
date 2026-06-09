@@ -42,7 +42,7 @@ DEFAULT_PRESET = "sensevoice"
 REQUIRED_FILES = ("tokens.txt",)
 MODEL_FILE_CANDIDATES = ("model.int8.onnx", "model.onnx")
 OPTIONAL_FILES = ("am.mvn", "config.yaml")
-# paraformer-zh-small ONNX is tens of MB; partial downloads are often 1�?0 MB.
+# paraformer-zh-small ONNX is tens of MB; partial downloads are often 1–10 MB.
 PARAFORMER_MIN_ONNX_BYTES = 20 * 1024 * 1024
 PARAFORMER_MIN_TOKENS_BYTES = 64
 PROGRESS_MARKER = "VOXTYPE_PROGRESS"
@@ -66,7 +66,7 @@ _configure_stdio_utf8()
 
 
 def report_download_progress(percent: int, message: str) -> None:
-    """Machine-readable progress for VoxType host (stdout)."""
+    """Machine-readable progress for QuickerAgent host (stdout)."""
     _configure_stdio_utf8()
     pct = max(0, min(100, int(percent)))
     print(f"{PROGRESS_MARKER}\t{pct}\t{message}", flush=True)
@@ -169,7 +169,7 @@ def describe_model_status(
     path = dest or target_dir(preset=preset)
     key = resolve_preset(preset)
     if not path.exists():
-        return False, "模型目录不存�?
+        return False, "模型目录不存在"
     if key == "sensevoice":
         try:
             verify_sensevoice_files(path)
@@ -181,15 +181,15 @@ def describe_model_status(
         return False, f"缺少模型文件: {', '.join(missing)}"
     tokens_path = path / "tokens.txt"
     if tokens_path.stat().st_size < PARAFORMER_MIN_TOKENS_BYTES:
-        return False, "tokens.txt 文件不完整（体积过小�?
+        return False, "tokens.txt 文件不完整（体积过小）"
     onnx = _model_file(path)
     if onnx is None:
         return False, "缺少 ONNX 模型文件"
     if onnx.stat().st_size < PARAFORMER_MIN_ONNX_BYTES:
         return False, (
             f"{onnx.name} 文件不完整（"
-            f"{onnx.stat().st_size // (1024 * 1024)} MB�?
-            f"需要至�?{PARAFORMER_MIN_ONNX_BYTES // (1024 * 1024)} MB�?
+            f"{onnx.stat().st_size // (1024 * 1024)} MB，"
+            f"需要至少 {PARAFORMER_MIN_ONNX_BYTES // (1024 * 1024)} MB）"
         )
     return True, None
 
@@ -209,7 +209,7 @@ def _prepare_model_destination(
     if ready and not force:
         return
     if dest.exists():
-        report_download_progress(1, "检测到不完整模型，正在清理�?)
+        report_download_progress(1, "检测到不完整模型，正在清理…")
         remove_model_dir(dest)
 
 
@@ -255,7 +255,7 @@ def download_file(
                 percent_end=percent_end,
             )
             return
-        except Exception as exc:  # noqa: BLE001 �?try next mirror
+        except Exception as exc:  # noqa: BLE001 — try next mirror
             last_error = exc
             dest.unlink(missing_ok=True)
             print(f"  mirror failed: {exc}", file=sys.stderr)
@@ -277,7 +277,7 @@ def _download_file_once(
 ) -> None:
     print(f"Downloading {url}")
     print(f"  -> {dest}")
-    report_download_progress(percent_start, "正在连接下载源�?)
+    report_download_progress(percent_start, "正在连接下载源…")
     with urllib.request.urlopen(url, timeout=300) as response:
         total = int(response.headers.get("Content-Length") or 0)
         downloaded = 0
@@ -297,15 +297,15 @@ def _download_file_once(
                     mb_total = total // (1024 * 1024)
                     report_download_progress(
                         pct,
-                        f"正在下载�?{mb_done} / {mb_total} MB",
+                        f"正在下载… {mb_done} / {mb_total} MB",
                     )
                 else:
                     mb_done = downloaded // (1024 * 1024)
                     report_download_progress(
                         percent_start + span // 2,
-                        f"正在下载�?{mb_done} MB",
+                        f"正在下载… {mb_done} MB",
                     )
-    report_download_progress(percent_end, "下载完成，准备解压�?)
+    report_download_progress(percent_end, "下载完成，准备解压…")
 
 
 def download_sensevoice_from_modelscope(dest: Path) -> None:
@@ -322,7 +322,7 @@ def download_sensevoice_from_modelscope(dest: Path) -> None:
     files: dict[str, Any] = identity["files"]
     total_bytes = sum(int(spec["size"]) for spec in files.values()) or 1
     done_bytes = 0
-    report_download_progress(5, f"�?ModelScope 下载 {identity['id']}�?)
+    report_download_progress(5, f"从 ModelScope 下载 {identity['id']}…")
     for name, spec in files.items():
         out_path = dest / name
         url = f"{modelscope_base}/{name}"
@@ -335,7 +335,7 @@ def download_sensevoice_from_modelscope(dest: Path) -> None:
 
 
 def extract_model(archive: Path, dest: Path) -> None:
-    report_download_progress(86, "正在解压模型文件�?)
+    report_download_progress(86, "正在解压模型文件…")
     dest.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive, mode="r:bz2") as tar:
         members = tar.getmembers()
@@ -378,21 +378,21 @@ def download_sensevoice_from_archive(dest: Path) -> None:
 def ensure_sensevoice_model(root: Path | None = None, *, force: bool = False) -> Path:
     dest = target_dir(root, "sensevoice")
     if is_model_ready(dest, preset="sensevoice") and not force:
-        report_download_progress(100, "模型已存�?)
+        report_download_progress(100, "模型已存在")
         return dest
 
     _prepare_model_destination(dest, preset="sensevoice", force=force)
-    report_download_progress(2, "准备下载 SenseVoice 模型�?)
+    report_download_progress(2, "准备下载 SenseVoice 模型…")
     errors: list[str] = []
     for fetch in (download_sensevoice_from_modelscope, download_sensevoice_from_archive):
         if dest.exists():
             shutil.rmtree(dest, ignore_errors=True)
         try:
             fetch(dest)
-            report_download_progress(98, "校验模型文件�?)
+            report_download_progress(98, "校验模型文件…")
             report_download_progress(100, "模型下载完成")
             return dest
-        except Exception as exc:  # noqa: BLE001 �?try next source
+        except Exception as exc:  # noqa: BLE001 — try next source
             errors.append(f"{fetch.__name__}: {exc}")
             print(f"  source failed: {exc}", file=sys.stderr)
 
@@ -414,11 +414,11 @@ def ensure_asr_model(
     preset_info = MODEL_PRESETS[key]
     dest = target_dir(root, key)
     if is_model_ready(dest, preset=key) and not force:
-        report_download_progress(100, "模型已存�?)
+        report_download_progress(100, "模型已存在")
         return dest
 
     _prepare_model_destination(dest, preset=key, force=force)
-    report_download_progress(2, f"准备下载 {preset_info['label']}�?)
+    report_download_progress(2, f"准备下载 {preset_info['label']}…")
     print(f"Fetching {preset_info['label']}")
     archive_name = preset_info["url"].rsplit("/", maxsplit=1)[-1]
     with tempfile.TemporaryDirectory(prefix="quicker-voice-model-") as tmp:
@@ -428,7 +428,7 @@ def ensure_asr_model(
 
     if not is_model_ready(dest, preset=key):
         raise RuntimeError(f"Model files missing after extract: {dest}")
-    report_download_progress(98, "校验模型文件�?)
+    report_download_progress(98, "校验模型文件…")
     report_download_progress(100, "模型下载完成")
     return dest
 
@@ -446,7 +446,7 @@ def check_main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
 
-    parser = argparse.ArgumentParser(description="Check VoxType ASR model integrity")
+    parser = argparse.ArgumentParser(description="Check QuickerAgent ASR model integrity")
     parser.add_argument("--root", type=Path, default=None, help="Plugin data root")
     parser.add_argument("--preset", default=None, help="sensevoice | paraformer")
     args = parser.parse_args(argv)
@@ -467,7 +467,7 @@ def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
 
-    parser = argparse.ArgumentParser(description="Download VoxType ASR model")
+    parser = argparse.ArgumentParser(description="Download QuickerAgent ASR model")
     parser.add_argument("--force", action="store_true", help="Remove existing model and re-download")
     parser.add_argument("--preset", default=None, help="sensevoice | paraformer")
     parser.add_argument("--root", type=Path, default=None, help="Plugin data root")

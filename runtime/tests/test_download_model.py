@@ -26,7 +26,7 @@ def test_describe_model_status_partial_onnx(tmp_path: Path) -> None:
     assert ready is False
     assert err is not None
     assert err is not None
-    assert "不完�? in err or "过小" in err
+    assert "不完整" in err or "过小" in err
 
 
 def test_load_sensevoice_identity_from_plugin_runtime_fallback(tmp_path: Path, monkeypatch) -> None:

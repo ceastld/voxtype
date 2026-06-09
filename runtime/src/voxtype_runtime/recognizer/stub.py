@@ -13,4 +13,4 @@ class StubRecognizer:
         if len(pcm_s16le) < sample_rate * 2 // 5:
             return ""
         seconds = len(pcm_s16le) / (sample_rate * 2)
-        return f"[stub] 收到�?{seconds:.1f}s 音频（{language}�?
+        return f"[stub] 收到约 {seconds:.1f}s 音频（{language}）"
