@@ -9,6 +9,8 @@ type AppStatus = {
   activeModelId: string | null;
   activeModelName?: string | null;
   hotkey: string;
+  modelsCatalogPath?: string;
+  modelsCatalogSource?: string;
 };
 
 type ModelStatus = {
@@ -126,6 +128,11 @@ export default function App() {
         <div className="status">
           当前模型：{status?.activeModelName ?? status?.activeModelId ?? "未选择"}
         </div>
+        {status?.modelsCatalogSource && (
+          <div className="status" title={status.modelsCatalogPath}>
+            模型目录：{status.modelsCatalogSource === "bundled" ? "安装包内置" : status.modelsCatalogSource}
+          </div>
+        )}
         <div className="row" style={{ marginTop: 12 }}>
           <button type="button" onClick={() => void refresh()}>
             刷新
@@ -159,7 +166,7 @@ export default function App() {
       <div className="card">
         <h2>识别模型（与 CapsWriter 对齐）</h2>
         <p className="status" style={{ marginBottom: 12 }}>
-          从 ModelScope 下载；已安装模型可一键切换。Fun-ASR / Qwen3 引擎开发中。
+          下载地址来自安装包内置 catalog；权重从 ModelScope 拉取。Fun-ASR / Qwen3 引擎开发中。
         </p>
         {models.map((m) => (
           <div

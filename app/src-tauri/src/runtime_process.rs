@@ -49,14 +49,18 @@ impl RuntimeProcess {
 
         let settings = load_settings();
         let exe = runtime_exe_path();
-        if !exe.exists() {
+        if !exe.is_file() {
             return Err(format!(
-                "未找到识别服务: {exe:?} — 请先构建 runtime 或安装完整包"
+                "未找到识别服务: {exe:?} — 请重新安装 VoxType 完整安装包"
             ));
         }
+        let runtime_cwd = exe
+            .parent()
+            .ok_or_else(|| format!("识别服务路径无效: {exe:?}"))?;
 
         let (model_dir, model_type) = resolve_active_model_dir(&settings)?;
         let mut cmd = Command::new(&exe);
+        cmd.current_dir(runtime_cwd);
         cmd.arg("--port")
             .arg(settings.runtime_ws_port.to_string())
             .arg("--model-dir")

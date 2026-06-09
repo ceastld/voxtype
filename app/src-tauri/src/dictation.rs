@@ -266,6 +266,8 @@ pub async fn build_status(handle: &DictationHandle) -> serde_json::Value {
         "activeModelId": settings.active_model_id,
         "activeModelName": active_name,
         "hotkey": settings.hotkey,
+        "modelsCatalogPath": crate::settings::catalog_path().to_string_lossy(),
+        "modelsCatalogSource": crate::settings::catalog_source(),
     })
 }
 

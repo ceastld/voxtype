@@ -71,27 +71,59 @@ pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     fs::write(settings_path(), raw).map_err(|e| e.to_string())
 }
 
+/// Installed NSIS layout: `<install-dir>/catalog/models.json` (bundled at build time).
+pub fn bundled_catalog_path() -> Option<PathBuf> {
+    install_dir().map(|parent| parent.join("catalog").join("models.json"))
+}
+
 pub fn catalog_path() -> PathBuf {
     if let Ok(p) = std::env::var("VOXTYPE_MODELS_CATALOG") {
         return PathBuf::from(p);
     }
+    // User override for advanced tuning; fresh installs use the bundled catalog.
     let user_catalog = data_root().join("catalog").join("models.json");
     if user_catalog.exists() {
         return user_catalog;
     }
-    if let Some(exe) = std::env::current_exe().ok() {
-        if let Some(parent) = exe.parent() {
-            let bundled = parent.join("catalog").join("models.json");
-            if bundled.exists() {
-                return bundled;
-            }
+    if let Some(bundled) = bundled_catalog_path() {
+        if bundled.is_file() {
+            return bundled;
         }
+    }
+    // Dev: staged copy next to tauri crate, then repo canonical catalog.
+    let staged = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("bundle-resources")
+        .join("catalog")
+        .join("models.json");
+    if staged.is_file() {
+        return staged;
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
         .join("catalog")
         .join("models.json")
+}
+
+pub fn catalog_source() -> &'static str {
+    if std::env::var("VOXTYPE_MODELS_CATALOG").is_ok() {
+        return "env";
+    }
+    let user_catalog = data_root().join("catalog").join("models.json");
+    if user_catalog.exists() {
+        return "user-override";
+    }
+    if bundled_catalog_path().is_some_and(|p| p.is_file()) {
+        return "bundled";
+    }
+    let staged = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("bundle-resources")
+        .join("catalog")
+        .join("models.json");
+    if staged.is_file() {
+        return "dev-staged";
+    }
+    "dev-repo"
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -229,14 +261,32 @@ pub fn find_catalog_entry(model_id: &str) -> Result<ModelCatalogEntry, String> {
         .ok_or_else(|| format!("未知模型: {model_id}"))
 }
 
+fn has_paraformer_or_sensevoice_layout(dir: &Path) -> bool {
+    let has_tokens = dir.join("tokens.txt").is_file();
+    let has_onnx =
+        dir.join("model.int8.onnx").is_file() || dir.join("model.onnx").is_file();
+    has_tokens && has_onnx
+}
+
+fn has_whisper_layout(dir: &Path) -> bool {
+    let has_tokens = dir.join("tokens.txt").is_file();
+    let has_encoder = dir.join("encoder.int8.onnx").is_file()
+        || dir.join("encoder.onnx").is_file();
+    let has_decoder = dir.join("decoder.int8.onnx").is_file()
+        || dir.join("decoder.onnx").is_file();
+    has_tokens && has_encoder && has_decoder
+}
+
 pub fn is_model_installed(entry: &ModelCatalogEntry) -> bool {
     let dir = model_dir_for_id(&entry.id, &entry.layout);
     if !dir.is_dir() {
         return false;
     }
-    let has_tokens = dir.join("tokens.txt").is_file();
-    let has_onnx = dir.join("model.int8.onnx").is_file() || dir.join("model.onnx").is_file();
-    has_tokens && has_onnx
+    let kind = entry.runtime_preset_or_type();
+    if kind == "whisper" {
+        return has_whisper_layout(&dir);
+    }
+    has_paraformer_or_sensevoice_layout(&dir)
 }
 
 pub fn list_model_statuses() -> Result<Vec<ModelStatusDto>, String> {
@@ -258,24 +308,47 @@ pub fn list_model_statuses() -> Result<Vec<ModelStatusDto>, String> {
         .collect())
 }
 
-pub fn runtime_exe_path() -> PathBuf {
-    if let Ok(p) = std::env::var("VOXTYPE_RUNTIME_EXE") {
-        return PathBuf::from(p);
-    }
-    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("runtime")
-        .join("dist")
-        .join("voxtype-runtime")
-        .join("voxtype-runtime.exe");
-    if dev.exists() {
-        return dev;
-    }
+fn install_dir() -> Option<PathBuf> {
     std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|p| p.join("runtime").join("voxtype-runtime.exe")))
-        .unwrap_or(dev)
+        .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
+}
+
+fn runtime_exe_candidates() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Ok(p) = std::env::var("VOXTYPE_RUNTIME_EXE") {
+        paths.push(PathBuf::from(p));
+    }
+    paths.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("runtime")
+            .join("dist")
+            .join("voxtype-runtime")
+            .join("voxtype-runtime.exe"),
+    );
+    if let Some(parent) = install_dir() {
+        paths.push(
+            parent
+                .join("runtime")
+                .join("voxtype-runtime")
+                .join("voxtype-runtime.exe"),
+        );
+    }
+    paths
+}
+
+pub fn runtime_exe_path() -> PathBuf {
+    runtime_exe_candidates()
+        .into_iter()
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| {
+            runtime_exe_candidates()
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| PathBuf::from("voxtype-runtime.exe"))
+        })
 }
 
 #[allow(dead_code)]

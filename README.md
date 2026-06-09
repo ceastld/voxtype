@@ -36,17 +36,26 @@ Data directory: `%LOCALAPPDATA%\VoxType\` (models, settings).
 
 ## Model download
 
-Models are **not** shipped via GitHub Releases. The installer bundles `catalog/models.json` with **domestic mirror URLs** (e.g. Bitiful). Users download models from the VoxType settings UI on first use.
-
-Edit `catalog/models.json` before release to point at your CDN; the same file is attached to each GitHub Release for reference.
+Model **weights** are not bundled (too large). Model **download URLs** are written in `catalog/models.json` and ship inside the installer at `catalog/models.json` — the app reads this file locally (no remote catalog fetch). Users download weights from the settings UI on first use.
 
 ## Release
 
-Push tag `v0.1.0` → GitHub Actions builds runtime zip + NSIS installer + attaches `catalog/models.json`.
+Push tag `v0.1.x` → GitHub Actions builds a **single NSIS installer** (`VoxType_<version>_x64-setup.exe`) that includes:
+
+- Tauri desktop app (settings, overlay, hotkeys, typing)
+- `voxtype-runtime` (PyInstaller onedir, next to the app under `runtime/voxtype-runtime/`)
+- `catalog/models.json`
 
 ```powershell
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.3
+git push origin v0.1.3
+```
+
+Local full build:
+
+```powershell
+cd runtime && pwsh -NoProfile -File ./scripts/build-win.ps1
+cd ../app && pnpm install && pnpm tauri build
 ```
 
 ## Quicker integration

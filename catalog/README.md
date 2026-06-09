@@ -1,6 +1,6 @@
 # Model catalog (`models.json`)
 
-Bundled with the VoxType installer. **Downloads use ModelScope** (`modelscopeResolveBase` + `modelscopeFiles`).
+**Model download URLs live in this file and ship inside the installer** at `<install-dir>/catalog/models.json`. The app never fetches a remote catalog; it only reads this bundled JSON (or a user override). **Speech model weights** are downloaded on first use via the embedded ModelScope URLs (`modelscopeResolveBase` + `modelscopeFiles`).
 
 ## CapsWriter-aligned engines
 

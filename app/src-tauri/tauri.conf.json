@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../../scripts/prepare-tauri-build.ps1 && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -50,7 +50,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../../catalog/models.json": "catalog/models.json"
+      "bundle-resources/runtime/voxtype-runtime/": "runtime/voxtype-runtime/",
+      "bundle-resources/catalog/models.json": "catalog/models.json"
     }
   }
 }
