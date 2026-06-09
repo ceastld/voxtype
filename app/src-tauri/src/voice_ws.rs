@@ -45,6 +45,8 @@ pub struct RuntimeHealth {
 
     pub detail: Option<String>,
 
+    pub execution_provider: Option<String>,
+
 }
 
 
@@ -422,6 +424,14 @@ pub async fn fetch_runtime_health(port: u16) -> Option<RuntimeHealth> {
         detail: v
 
             .get("message")
+
+            .and_then(|x| x.as_str())
+
+            .map(|s| s.to_string()),
+
+        execution_provider: v
+
+            .get("executionProvider")
 
             .and_then(|x| x.as_str())
 

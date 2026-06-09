@@ -1,5 +1,6 @@
 use crate::settings::{
-    load_catalog, load_settings, model_dir_for_id, runtime_exe_path, runtime_log_path, save_settings,
+    load_catalog, load_settings, model_dir_for_id, resolve_runtime_provider, runtime_exe_path,
+    runtime_log_path, save_settings,
 };
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -104,12 +105,14 @@ impl RuntimeProcess {
             .ok_or_else(|| format!("识别服务路径无效: {}", exe.display()))?;
 
         let (model_dir, model_type) = resolve_active_model_dir(&settings)?;
+        let provider = resolve_runtime_provider(settings.use_gpu);
         tracing::info!(
-            "starting runtime: exe={} port={} model={} type={}",
+            "starting runtime: exe={} port={} model={} type={} provider={}",
             exe.display(),
             port,
             model_dir.display(),
-            model_type
+            model_type,
+            provider
         );
 
         let log_path = runtime_log_path();
@@ -123,10 +126,11 @@ impl RuntimeProcess {
             .map_err(|e| format!("无法写入 runtime 日志 {}: {e}", log_path.display()))?;
         let _ = writeln!(
             log_file.try_clone().map_err(|e| e.to_string())?,
-            "\n--- voxtype runtime start {} port={} model={} ---",
+            "\n--- voxtype runtime start {} port={} model={} provider={} ---",
             chrono_lite_now(),
             port,
-            model_dir.display()
+            model_dir.display(),
+            provider
         );
 
         let mut cmd = Command::new(&exe);
@@ -136,7 +140,9 @@ impl RuntimeProcess {
             .arg("--model-dir")
             .arg(&model_dir)
             .arg("--model-type")
-            .arg(&model_type);
+            .arg(&model_type)
+            .arg("--provider")
+            .arg(provider);
         cmd.stdout(Stdio::null()).stderr(Stdio::from(log_file));
         #[cfg(windows)]
         cmd.creation_flags(CREATE_NO_WINDOW);

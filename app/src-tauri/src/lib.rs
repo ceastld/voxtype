@@ -49,6 +49,12 @@ fn set_hotkey_mode(mode: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_use_gpu(use_gpu: bool, state: State<'_, AppState>) -> Result<(), String> {
+    dictation::update_use_gpu_setting(use_gpu)?;
+    state.inner().dictation.restart_runtime()
+}
+
+#[tauri::command]
 async fn download_model(app: AppHandle, model_id: String) -> Result<(), String> {
     model_download::download_model(&app, &model_id).await
 }
@@ -206,6 +212,7 @@ pub fn run() {
             list_models_status,
             set_hotkey,
             set_hotkey_mode,
+            set_use_gpu,
             download_model,
             activate_model,
             restart_runtime,

@@ -31,6 +31,7 @@ pnpm tauri dev
 - Runtime health: `http://127.0.0.1:6016/health`
 - Client API: `http://127.0.0.1:6020/health`
 - Default hotkey: **F9** (hold to dictate, release to type)
+- **GPU acceleration** is on by default (CUDA on Windows/Linux, CoreML on macOS); toggle in settings or disable with CPU-only inference
 
 Data directory: `%LOCALAPPDATA%\VoxType\` (models, settings).
 

@@ -752,6 +752,18 @@ pub fn update_hotkey_mode_setting(mode: &str) -> Result<(), String> {
 
 
 
+pub fn update_use_gpu_setting(use_gpu: bool) -> Result<(), String> {
+
+    let mut s = load_settings();
+
+    s.use_gpu = use_gpu;
+
+    save_settings(&s)
+
+}
+
+
+
 pub async fn build_status(handle: &DictationHandle) -> serde_json::Value {
 
     let settings: AppSettings = load_settings();
@@ -795,6 +807,10 @@ pub async fn build_status(handle: &DictationHandle) -> serde_json::Value {
         "hotkey": settings.hotkey,
 
         "hotkeyMode": settings.hotkey_mode,
+
+        "useGpu": settings.use_gpu,
+
+        "requestedProvider": crate::settings::resolve_runtime_provider(settings.use_gpu),
 
         "runtimeExe": crate::settings::runtime_exe_path().to_string_lossy(),
 

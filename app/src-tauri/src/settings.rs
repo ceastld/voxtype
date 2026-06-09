@@ -19,6 +19,9 @@ pub struct AppSettings {
     pub runtime_ws_port: u16,
     pub api_port: u16,
     pub strip_trailing_punctuation: bool,
+    /// When true, runtime uses the platform GPU provider (CUDA/CoreML) with CPU fallback.
+    #[serde(default = "default_true")]
+    pub use_gpu: bool,
 }
 
 fn default_hotkey_mode() -> String {
@@ -34,7 +37,26 @@ impl Default for AppSettings {
             runtime_ws_port: DEFAULT_WS_PORT,
             api_port: DEFAULT_API_PORT,
             strip_trailing_punctuation: true,
+            use_gpu: true,
         }
+    }
+}
+
+/// ONNX execution provider when GPU acceleration is enabled (platform-specific).
+pub fn preferred_gpu_provider() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "coreml"
+    } else {
+        // Windows and Linux: sherpa-onnx pre-built wheels ship CUDA (+ CPU fallback).
+        "cuda"
+    }
+}
+
+pub fn resolve_runtime_provider(use_gpu: bool) -> &'static str {
+    if use_gpu {
+        preferred_gpu_provider()
+    } else {
+        "cpu"
     }
 }
 

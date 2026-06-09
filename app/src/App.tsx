@@ -4,15 +4,22 @@ import { listen } from "@tauri-apps/api/event";
 import { DownloadToast } from "./components/DownloadToast";
 import { useSettingsWindowSize } from "./lib/useSettingsWindowSize";
 
+type RuntimeHealth = {
+  executionProvider?: string | null;
+};
+
 type AppStatus = {
   runtimeRunning: boolean;
   runtimeReady: boolean;
   runtimeWsPort?: number;
+  runtimeHealth?: RuntimeHealth | null;
   dictationPhase: string;
   activeModelId: string | null;
   activeModelName?: string | null;
   hotkey: string;
   hotkeyMode?: string;
+  useGpu?: boolean;
+  requestedProvider?: string;
   lastError?: string | null;
   modelsCatalogSource?: string;
 };
@@ -39,6 +46,7 @@ export default function App() {
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [hotkey, setHotkey] = useState("F9");
   const [hotkeyMode, setHotkeyMode] = useState<"hold" | "toggle">("hold");
+  const [useGpu, setUseGpu] = useState(true);
   const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -61,6 +69,7 @@ export default function App() {
       setStatus(s);
       setHotkey(s.hotkey);
       setHotkeyMode(s.hotkeyMode === "toggle" ? "toggle" : "hold");
+      setUseGpu(s.useGpu !== false);
       await refreshModels();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
@@ -89,6 +98,23 @@ export default function App() {
       void unlistenDone.then((fn) => fn());
     };
   }, [refresh]);
+
+  const applyUseGpu = async (enabled: boolean) => {
+    setMessage(null);
+    setUseGpu(enabled);
+    try {
+      await invoke("set_use_gpu", { useGpu: enabled });
+      await refresh();
+      setMessage(
+        enabled
+          ? "已启用 GPU 加速并重启识别服务。"
+          : "已切换为 CPU 推理并重启识别服务。",
+      );
+    } catch (e) {
+      setUseGpu(!enabled);
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const applyHotkey = async () => {
     setMessage(null);
@@ -138,6 +164,21 @@ export default function App() {
       ? "启动中"
       : "未运行";
 
+  const executionProvider =
+    status?.runtimeHealth?.executionProvider ??
+    (status?.runtimeReady ? "cpu" : null);
+
+  const providerLabel =
+    executionProvider === "cuda"
+      ? "CUDA"
+      : executionProvider === "coreml"
+        ? "CoreML"
+        : executionProvider === "directml"
+          ? "DirectML"
+          : executionProvider === "cpu"
+            ? "CPU"
+            : executionProvider;
+
   return (
     <div className="app" ref={rootRef}>
       <header className="app-header">
@@ -184,6 +225,13 @@ export default function App() {
               </span>
             </div>
             <div className="stat">
+              <span className="label">推理后端</span>
+              <span className="value">
+                {providerLabel ?? "—"}
+                {status?.useGpu === false ? " · 已关闭 GPU" : ""}
+              </span>
+            </div>
+            <div className="stat">
               <span className="label">目录来源</span>
               <span className="value">
                 {status?.modelsCatalogSource === "bundled"
@@ -195,6 +243,28 @@ export default function App() {
           {status?.lastError && (
             <p className="inline-alert err">{status.lastError}</p>
           )}
+        </section>
+
+        <section className="card compact">
+          <h2>推理</h2>
+          <div className="toggle-row">
+            <label className="toggle" htmlFor="useGpu">
+              <input
+                id="useGpu"
+                type="checkbox"
+                checked={useGpu}
+                onChange={(e) => void applyUseGpu(e.target.checked)}
+              />
+              <span className="toggle-track" aria-hidden />
+              <span className="toggle-label">GPU 加速</span>
+            </label>
+            <span className="hint inline">
+              默认开启；无可用 GPU 时自动回退 CPU
+              {status?.requestedProvider
+                ? `（请求 ${status.requestedProvider}）`
+                : ""}
+            </span>
+          </div>
         </section>
 
         <section className="card compact">

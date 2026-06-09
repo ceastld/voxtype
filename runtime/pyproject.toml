@@ -9,14 +9,12 @@ authors = [{ name = "VoxType contributors" }]
 dependencies = [
     "aiohttp>=3.10.0",
     "numpy>=2.0.0",
-    "sherpa-onnx==1.13.2",
-    "sherpa-onnx-core==1.13.2",
+    "sherpa-onnx==1.13.2+cuda",
 ]
 
 [project.optional-dependencies]
 sherpa = [
-    "sherpa-onnx==1.13.2",
-    "sherpa-onnx-core==1.13.2",
+    "sherpa-onnx==1.13.2+cuda",
     "numpy>=2.0.0",
 ]
 
@@ -41,13 +39,12 @@ dev-dependencies = [
 ]
 
 [[tool.uv.index]]
-name = "sherpa-cpu"
-url = "https://k2-fsa.github.io/sherpa/onnx/cpu.html"
+name = "sherpa-cuda"
+url = "https://k2-fsa.github.io/sherpa/onnx/cuda.html"
 format = "flat"
 
 [tool.uv.sources]
-sherpa-onnx = { index = "sherpa-cpu" }
-sherpa-onnx-core = { index = "sherpa-cpu" }
+sherpa-onnx = { index = "sherpa-cuda" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
