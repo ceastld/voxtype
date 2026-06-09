@@ -177,6 +177,59 @@ h1 {
   flex: 1;
 }
 
+.hotkey-grid select {
+  width: 100%;
+}
+
+.hotkey-controls {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.hotkey-recorder {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: #e8eaed;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hotkey-recorder:hover:not(:disabled) {
+  border-color: rgba(79, 140, 255, 0.55);
+}
+
+.hotkey-recorder.recording {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.25);
+}
+
+.hotkey-recorder:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.hotkey-recorder-label {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.hotkey-recorder-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 label {
   color: var(--muted);
   font-size: 0.82rem;

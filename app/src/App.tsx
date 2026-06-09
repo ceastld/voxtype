@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DownloadToast } from "./components/DownloadToast";
+import { HotkeyRecorder } from "./components/HotkeyRecorder";
 import { useSettingsWindowSize } from "./lib/useSettingsWindowSize";
+
+const DEFAULT_HOTKEY = "F9";
 
 type RuntimeHealth = {
   executionProvider?: string | null;
@@ -116,12 +119,35 @@ export default function App() {
     }
   };
 
-  const applyHotkey = async () => {
+  const captureHotkey = async (next: string) => {
     setMessage(null);
-    await invoke("set_hotkey", { hotkey });
-    await invoke("set_hotkey_mode", { mode: hotkeyMode });
-    await refresh();
-    setMessage("热键已更新，请完全退出后重新打开 VoxType 以生效。");
+    try {
+      await invoke("set_hotkey", { hotkey: next });
+      setHotkey(next);
+      await refresh();
+      setMessage("快捷键已更新并立即生效。");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+  };
+
+  const applyHotkeyMode = async (mode: "hold" | "toggle") => {
+    setMessage(null);
+    setHotkeyMode(mode);
+    try {
+      await invoke("set_hotkey_mode", { mode });
+      await refresh();
+      setMessage("触发方式已更新并立即生效。");
+    } catch (e) {
+      setHotkeyMode(mode === "toggle" ? "hold" : "toggle");
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const resetHotkey = async () => {
+    if (hotkey === DEFAULT_HOTKEY) return;
+    await captureHotkey(DEFAULT_HOTKEY);
   };
 
   const downloadModel = async (modelId: string) => {
@@ -269,32 +295,37 @@ export default function App() {
 
         <section className="card compact">
           <h2>热键</h2>
-          <div className="form-grid">
-            <label htmlFor="hotkey">快捷键</label>
-            <input
-              id="hotkey"
-              value={hotkey}
-              onChange={(e) => setHotkey(e.target.value)}
-              placeholder="F9"
-            />
-            <label htmlFor="hotkeyMode">触发方式</label>
-            <div className="inline-field">
-              <select
-                id="hotkeyMode"
-                value={hotkeyMode}
-                onChange={(e) =>
-                  setHotkeyMode(e.target.value === "toggle" ? "toggle" : "hold")
-                }
+          <div className="form-grid hotkey-grid">
+            <label>快捷键</label>
+            <div className="hotkey-controls">
+              <HotkeyRecorder value={hotkey} onCapture={captureHotkey} />
+              <button
+                type="button"
+                className="secondary"
+                disabled={hotkey === DEFAULT_HOTKEY}
+                onClick={() => void resetHotkey()}
               >
-                <option value="hold">按住说话，松开结束</option>
-                <option value="toggle">按一下开始，再按一下结束</option>
-              </select>
-              <button type="button" onClick={() => void applyHotkey()}>
-                保存
+                恢复默认
               </button>
             </div>
+            <label htmlFor="hotkeyMode">触发方式</label>
+            <select
+              id="hotkeyMode"
+              value={hotkeyMode}
+              onChange={(e) =>
+                void applyHotkeyMode(
+                  e.target.value === "toggle" ? "toggle" : "hold",
+                )
+              }
+            >
+              <option value="hold">按住说话，松开结束</option>
+              <option value="toggle">按一下开始，再按一下结束</option>
+            </select>
           </div>
-          <p className="hint">悬浮窗在说话时显示实时识别文字，不抢焦点。</p>
+          <p className="hint">
+            点击快捷键按钮后按下组合键（如 Ctrl+Shift+V、Alt+F9）或功能键（F1–F24）；
+            保存后立即生效。悬浮窗在说话时显示实时识别文字，不抢焦点。
+          </p>
         </section>
 
         <section className="card models-card">

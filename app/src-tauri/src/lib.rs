@@ -1,5 +1,6 @@
 mod audio_capture;
 mod dictation;
+mod hotkey;
 mod http_api;
 mod model_download;
 mod overlay;
@@ -9,6 +10,7 @@ mod text_output;
 mod voice_ws;
 
 use dictation::DictationHandle;
+use hotkey::HotkeyManager;
 use http_api::ApiState;
 use settings::load_settings;
 use std::sync::Arc;
@@ -17,10 +19,10 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, State, WindowEvent,
 };
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 struct AppState {
     dictation: Arc<DictationHandle>,
+    hotkey: Arc<HotkeyManager>,
 }
 
 #[tauri::command]
@@ -39,13 +41,35 @@ fn list_models_status() -> Result<Vec<settings::ModelStatusDto>, String> {
 }
 
 #[tauri::command]
-fn set_hotkey(hotkey: String) -> Result<(), String> {
-    dictation::update_hotkey_setting(&hotkey)
+fn validate_hotkey(hotkey: String) -> Result<(), String> {
+    hotkey::HotkeyManager::validate(&hotkey)
 }
 
 #[tauri::command]
-fn set_hotkey_mode(mode: String) -> Result<(), String> {
-    dictation::update_hotkey_mode_setting(&mode)
+fn set_hotkey(
+    hotkey: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    hotkey::HotkeyManager::validate(&hotkey)?;
+    dictation::update_hotkey_setting(&hotkey)?;
+    state
+        .inner()
+        .hotkey
+        .register(&app, Arc::clone(&state.inner().dictation))
+}
+
+#[tauri::command]
+fn set_hotkey_mode(
+    mode: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    dictation::update_hotkey_mode_setting(&mode)?;
+    state
+        .inner()
+        .hotkey
+        .register(&app, Arc::clone(&state.inner().dictation))
 }
 
 #[tauri::command]
@@ -80,47 +104,6 @@ async fn dictation_stop(state: State<'_, AppState>) -> Result<String, String> {
     state.inner().dictation.stop_recording_and_type().await
 }
 
-fn register_hotkey(app: &AppHandle, dictation: Arc<DictationHandle>) -> Result<(), String> {
-    let settings = load_settings();
-    let hotkey = settings
-        .hotkey
-        .parse::<tauri_plugin_global_shortcut::Shortcut>()
-        .map_err(|e| format!("无效热键 {}: {e}", settings.hotkey))?;
-    let mode = settings.hotkey_mode.clone();
-
-    app.global_shortcut()
-        .on_shortcut(hotkey, move |_app, _shortcut, event| {
-            let dictation = Arc::clone(&dictation);
-            if mode == "toggle" {
-                if event.state != ShortcutState::Pressed {
-                    return;
-                }
-                let dictation = Arc::clone(&dictation);
-                tauri::async_runtime::spawn(async move {
-                    let _ = dictation.toggle().await;
-                });
-                return;
-            }
-
-            let dictation = Arc::clone(&dictation);
-            if event.state == ShortcutState::Pressed {
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = dictation.hold_begin().await {
-                        tracing::warn!("hotkey start: {e}");
-                    }
-                });
-            } else if event.state == ShortcutState::Released {
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = dictation.hold_end().await {
-                        tracing::warn!("hotkey stop: {e}");
-                    }
-                });
-            }
-        })
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter("info")
@@ -146,11 +129,14 @@ pub fn run() {
     });
 
     let dictation_for_setup = Arc::clone(&dictation);
+    let hotkey_manager = Arc::new(HotkeyManager::new());
+    let hotkey_for_setup = Arc::clone(&hotkey_manager);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(AppState {
             dictation: Arc::clone(&dictation),
+            hotkey: Arc::clone(&hotkey_manager),
         })
         .setup(move |app| {
             dictation_for_setup.set_app(app.handle().clone());
@@ -190,9 +176,10 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            if let Err(e) =
-                register_hotkey(&app.handle().clone(), Arc::clone(&dictation_for_setup))
-            {
+            if let Err(e) = hotkey_for_setup.register(
+                &app.handle().clone(),
+                Arc::clone(&dictation_for_setup),
+            ) {
                 tracing::warn!("global hotkey disabled: {e}");
             }
             Ok(())
@@ -209,6 +196,7 @@ pub fn run() {
             get_app_status,
             load_models_catalog,
             list_models_status,
+            validate_hotkey,
             set_hotkey,
             set_hotkey_mode,
             set_use_gpu,
