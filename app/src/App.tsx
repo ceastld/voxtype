@@ -174,7 +174,6 @@ export default function App() {
     setBusyId(modelId);
     try {
       await invoke("activate_model", { modelId });
-      await invoke("restart_runtime");
       await refresh();
       setMessage("已切换模型并重启识别服务。");
     } catch (e) {
@@ -324,7 +323,8 @@ export default function App() {
           </div>
           <p className="hint">
             点击快捷键按钮后按下组合键（如 Ctrl+Shift+V、Alt+F9）或功能键（F1–F24）；
-            保存后立即生效。悬浮窗在说话时显示实时识别文字，不抢焦点。
+            保存后立即生效。松手后会多录约 0.3 秒尾音，减少句末被截断。
+            悬浮窗在说话时显示实时识别文字，不抢焦点。
           </p>
         </section>
 

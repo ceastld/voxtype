@@ -4,6 +4,9 @@ use crate::runtime_process::RuntimeProcess;
 
 use crate::settings::{load_settings, save_settings, AppSettings};
 
+/// Keep capturing briefly after stop is requested so trailing syllables are not clipped.
+const RECORD_TAIL_MS: u64 = 300;
+
 use crate::text_output::type_unicode;
 
 use crate::voice_ws::{fetch_runtime_health, VoiceWsSession};
@@ -606,6 +609,15 @@ async fn stop_recording_and_type(
 
         return Ok(String::new());
 
+    }
+
+    if RECORD_TAIL_MS > 0 {
+        tracing::debug!("dictation tail capture {RECORD_TAIL_MS}ms before stop");
+        tokio::time::sleep(Duration::from_millis(RECORD_TAIL_MS)).await;
+    }
+
+    if active.is_none() {
+        return Ok(String::new());
     }
 
     *phase.write() = DictationPhase::Transcribing;
