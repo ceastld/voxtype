@@ -36,11 +36,6 @@ async fn dictate_start(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     state
         .dictation
-        .ensure_runtime()
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    state
-        .dictation
         .start_recording()
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;

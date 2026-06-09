@@ -207,6 +207,11 @@ impl ModelDownloadSpec {
         self.source.eq_ignore_ascii_case("modelscope")
     }
 
+    pub fn is_archive(&self) -> bool {
+        self.source.eq_ignore_ascii_case("archive")
+            || self.source.eq_ignore_ascii_case("github")
+    }
+
     pub fn candidate_zip_urls(&self) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         if let Some(mirror) = &self.mirror_url {
@@ -292,11 +297,41 @@ pub fn find_catalog_entry(model_id: &str) -> Result<ModelCatalogEntry, String> {
         .ok_or_else(|| format!("未知模型: {model_id}"))
 }
 
+fn has_onnx_stem(dir: &Path, stem: &str) -> bool {
+    dir.join(format!("{stem}.int8.onnx")).is_file() || dir.join(format!("{stem}.onnx")).is_file()
+}
+
+fn has_tokenizer_dir(dir: &Path) -> bool {
+    for name in ["tokenizer", "Qwen3-0.6B"] {
+        let tok = dir.join(name);
+        if tok.is_dir()
+            && (tok.join("tokenizer.json").is_file() || tok.join("vocab.json").is_file())
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn has_paraformer_or_sensevoice_layout(dir: &Path) -> bool {
     let has_tokens = dir.join("tokens.txt").is_file();
     let has_onnx =
         dir.join("model.int8.onnx").is_file() || dir.join("model.onnx").is_file();
     has_tokens && has_onnx
+}
+
+fn has_funasr_nano_layout(dir: &Path) -> bool {
+    has_onnx_stem(dir, "encoder_adaptor")
+        && has_onnx_stem(dir, "llm")
+        && has_onnx_stem(dir, "embedding")
+        && has_tokenizer_dir(dir)
+}
+
+fn has_qwen_asr_layout(dir: &Path) -> bool {
+    dir.join("conv_frontend.onnx").is_file()
+        && has_onnx_stem(dir, "encoder")
+        && has_onnx_stem(dir, "decoder")
+        && has_tokenizer_dir(dir)
 }
 
 fn has_whisper_layout(dir: &Path) -> bool {
@@ -314,10 +349,12 @@ pub fn is_model_installed(entry: &ModelCatalogEntry) -> bool {
         return false;
     }
     let kind = entry.runtime_preset_or_type();
-    if kind == "whisper" {
-        return has_whisper_layout(&dir);
+    match kind {
+        "whisper" => has_whisper_layout(&dir),
+        "fun_asr_nano" => has_funasr_nano_layout(&dir),
+        "qwen_asr" => has_qwen_asr_layout(&dir),
+        _ => has_paraformer_or_sensevoice_layout(&dir),
     }
-    has_paraformer_or_sensevoice_layout(&dir)
 }
 
 pub fn list_model_statuses() -> Result<Vec<ModelStatusDto>, String> {

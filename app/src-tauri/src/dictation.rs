@@ -137,13 +137,13 @@ impl DictationHandle {
 
 
         let worker = thread::spawn(move || {
-
-            let rt = tokio::runtime::Builder::new_current_thread()
-
+            // Multi-thread runtime must keep WS reader/writer tasks alive while the
+            // command loop blocks on rx.recv() during an active recording session.
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .thread_name("voxtype-dictation")
                 .enable_all()
-
                 .build()
-
                 .expect("dictation runtime");
 
             let mut active: Option<ActiveRecording> = None;
@@ -358,11 +358,7 @@ impl DictationHandle {
     /// Hold-to-talk: wait for press-side startup before stopping.
     pub async fn hold_begin(&self) -> Result<(), String> {
         self.hold_start_in_flight.store(true, Ordering::SeqCst);
-        let result = async {
-            self.ensure_runtime().await?;
-            self.start_recording().await
-        }
-        .await;
+        let result = self.start_recording().await;
         self.hold_start_in_flight.store(false, Ordering::SeqCst);
         self.hold_start_done.notify_waiters();
         result
@@ -387,11 +383,7 @@ impl DictationHandle {
         match self.phase() {
 
             DictationPhase::Idle => {
-
-                self.ensure_runtime().await?;
-
                 self.start_recording().await?;
-
             }
 
             DictationPhase::Recording => {
@@ -470,6 +462,25 @@ fn emit_status(
 
 
 
+fn reset_recording_after_failure(
+    phase: &Arc<RwLock<DictationPhase>>,
+    app: &Arc<parking_lot::Mutex<Option<AppHandle>>>,
+    message: String,
+) {
+    *phase.write() = DictationPhase::Idle;
+    if let Some(handle) = app.lock().clone() {
+        crate::overlay::sync_overlay(&handle, DictationPhase::Idle);
+        let _ = handle.emit(
+            "dictation-status",
+            json!({
+                "phase": DictationPhase::Idle.as_str(),
+                "error": message,
+                "text": null,
+            }),
+        );
+    }
+}
+
 async fn start_recording(
 
     runtime: &RuntimeProcess,
@@ -494,48 +505,43 @@ async fn start_recording(
 
     }
 
+    // Open the mic first so audio is captured while runtime/WebSocket connect.
+    let audio = AudioCapture::start().map_err(|e| {
+        set_error(last_error, app, e.clone());
+        e
+    })?;
+
+    *phase.write() = DictationPhase::Recording;
+    emit_status(app, DictationPhase::Recording, None, None);
+    tracing::info!("dictation mic opened, connecting voice service...");
+
 
 
     let port = runtime.ensure_started()?;
 
-    RuntimeProcess::wait_until_healthy(port, 90_000)
-        .await
-
-        .map_err(|e| {
-
-            set_error(last_error, app, e.clone());
-
-            e
-
-        })?;
+    if let Err(e) = RuntimeProcess::wait_until_healthy(port, 90_000).await {
+        *last_error.write() = Some(e.clone());
+        reset_recording_after_failure(phase, app, e.clone());
+        return Err(e);
+    }
 
 
 
     let app_handle = app.lock().clone();
-    let ws = VoiceWsSession::connect(port, app_handle)
-        .await
-        .map_err(|e| {
-            set_error(last_error, app, e.clone());
-            e
-        })?;
+    let ws = match VoiceWsSession::connect(port, app_handle).await {
+        Err(e) => {
+            *last_error.write() = Some(e.clone());
+            reset_recording_after_failure(phase, app, e.clone());
+            return Err(e);
+        }
+        Ok(ws) => ws,
+    };
 
-    ws.start_session().await.map_err(|e| {
-
-        set_error(last_error, app, e.clone());
-
-        e
-
-    })?;
-
-
-
-    let audio = AudioCapture::start().map_err(|e| {
-
-        set_error(last_error, app, e.clone());
-
-        e
-
-    })?;
+    if let Err(e) = ws.start_session().await {
+        *last_error.write() = Some(e.clone());
+        reset_recording_after_failure(phase, app, e.clone());
+        return Err(e);
+    };
 
 
 
@@ -545,8 +551,7 @@ async fn start_recording(
     let bytes_counter = Arc::clone(&bytes_streamed);
     let (stop_tx, stop_rx) = std_mpsc::channel::<()>();
     let stream_handle = thread::spawn(move || {
-        while stop_rx.try_recv().is_err() {
-            thread::sleep(Duration::from_millis(200));
+        let flush_pcm = || {
             let pcm: Vec<u8> = {
                 let samples = std::mem::take(&mut *pcm_buf.lock().unwrap());
                 samples
@@ -558,6 +563,12 @@ async fn start_recording(
                 bytes_counter.fetch_add(pcm.len(), Ordering::Relaxed);
                 ws_stream.send_pcm(&pcm);
             }
+        };
+        // Send audio captured during runtime/WS handshake right away.
+        flush_pcm();
+        while stop_rx.try_recv().is_err() {
+            thread::sleep(Duration::from_millis(100));
+            flush_pcm();
         }
     });
 
@@ -569,11 +580,7 @@ async fn start_recording(
         stream_handle: Some(stream_handle),
     });
 
-    *phase.write() = DictationPhase::Recording;
-
-    emit_status(app, DictationPhase::Recording, None, None);
-
-    tracing::info!("dictation recording started");
+    tracing::info!("dictation voice stream attached");
 
     Ok(())
 

@@ -33,6 +33,15 @@ PARAFORMER_MODELSCOPE_FILES = (
     "config.yaml",
 )
 
+FUNASR_NANO_ARCHIVE_URL = (
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
+    "sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2"
+)
+QWEN3_ASR_ARCHIVE_URL = (
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
+    "sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2"
+)
+
 MODEL_PRESETS: dict[str, dict[str, str]] = {
     "sensevoice": {
         "url": SENSEVOICE_ARCHIVE_URL,
@@ -46,6 +55,16 @@ MODEL_PRESETS: dict[str, dict[str, str]] = {
         ),
         "dir": "paraformer-zh",
         "label": "Paraformer zh-small (~76MB)",
+    },
+    "fun_asr_nano": {
+        "url": FUNASR_NANO_ARCHIVE_URL,
+        "dir": "fun-asr-nano",
+        "label": "FunASR-Nano int8 (~950MB, zh/en/ja + dialects)",
+    },
+    "qwen_asr": {
+        "url": QWEN3_ASR_ARCHIVE_URL,
+        "dir": "qwen-asr",
+        "label": "Qwen3-ASR 0.6B int8 (high accuracy, large)",
     },
 }
 DEFAULT_PRESET = "sensevoice"
@@ -119,6 +138,10 @@ def resolve_preset(name: str | None = None) -> str:
         return "sensevoice"
     if raw in {"paraformer", "paraformer-zh"}:
         return "paraformer"
+    if raw in {"fun_asr_nano", "funasr_nano", "fun-asr-nano", "funasr-nano"}:
+        return "fun_asr_nano"
+    if raw in {"qwen_asr", "qwen3_asr", "qwen-asr", "qwen3-asr"}:
+        return "qwen_asr"
     return DEFAULT_PRESET
 
 
@@ -170,6 +193,44 @@ def is_model_ready(dest: Path | None = None, *, preset: str | None = None) -> bo
     return describe_model_status(dest, preset=preset)[0]
 
 
+def _has_onnx_stem(dest: Path, stem: str) -> bool:
+    return (dest / f"{stem}.int8.onnx").is_file() or (dest / f"{stem}.onnx").is_file()
+
+
+def _has_tokenizer_dir(dest: Path) -> bool:
+    for name in ("tokenizer", "Qwen3-0.6B"):
+        tok = dest / name
+        if tok.is_dir() and (
+            (tok / "tokenizer.json").is_file() or (tok / "vocab.json").is_file()
+        ):
+            return True
+    return False
+
+
+def _is_funasr_nano_ready(dest: Path) -> tuple[bool, str | None]:
+    missing = [
+        stem
+        for stem in ("encoder_adaptor", "llm", "embedding")
+        if not _has_onnx_stem(dest, stem)
+    ]
+    if missing:
+        return False, f"缺少 ONNX 文件: {', '.join(missing)}"
+    if not _has_tokenizer_dir(dest):
+        return False, "缺少 tokenizer 目录"
+    return True, None
+
+
+def _is_qwen_asr_ready(dest: Path) -> tuple[bool, str | None]:
+    if not (dest / "conv_frontend.onnx").is_file():
+        return False, "缺少 conv_frontend.onnx"
+    missing = [stem for stem in ("encoder", "decoder") if not _has_onnx_stem(dest, stem)]
+    if missing:
+        return False, f"缺少 ONNX 文件: {', '.join(missing)}"
+    if not _has_tokenizer_dir(dest):
+        return False, "缺少 tokenizer 目录"
+    return True, None
+
+
 def describe_model_status(
     dest: Path | None = None,
     *,
@@ -180,6 +241,10 @@ def describe_model_status(
     key = resolve_preset(preset)
     if not path.exists():
         return False, "模型目录不存在"
+    if key == "fun_asr_nano":
+        return _is_funasr_nano_ready(path)
+    if key == "qwen_asr":
+        return _is_qwen_asr_ready(path)
     if key == "sensevoice":
         try:
             verify_sensevoice_files(path)
@@ -373,6 +438,24 @@ def extract_model(archive: Path, dest: Path) -> None:
             print(f"  wrote {out_path}")
 
 
+def extract_archive_tree(archive: Path, dest: Path) -> None:
+    """Extract full sherpa-onnx tar.bz2 layout (multi-file + tokenizer subdirs)."""
+    report_download_progress(86, "正在解压模型文件…")
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+    with tempfile.TemporaryDirectory(prefix="voxtype-extract-") as tmp:
+        tmp_path = Path(tmp)
+        with tarfile.open(archive, mode="r:bz2") as tar:
+            tar.extractall(tmp_path)
+        children = [p for p in tmp_path.iterdir() if p.name not in {".", ".."}]
+        source = children[0] if len(children) == 1 and children[0].is_dir() else tmp_path
+        shutil.copytree(source, dest)
+        test_wavs = dest / "test_wavs"
+        if test_wavs.is_dir():
+            shutil.rmtree(test_wavs, ignore_errors=True)
+    report_download_progress(95, "解压完成")
+
+
 def download_sensevoice_from_archive(dest: Path) -> None:
     identity = load_sensevoice_identity()
     archive_url = str(identity.get("upstream") or SENSEVOICE_ARCHIVE_URL)
@@ -434,7 +517,10 @@ def ensure_asr_model(
     with tempfile.TemporaryDirectory(prefix="voxtype-model-") as tmp:
         archive = Path(tmp) / archive_name
         download_archive(preset_info["url"], archive)
-        extract_model(archive, dest)
+        if key in {"fun_asr_nano", "qwen_asr"}:
+            extract_archive_tree(archive, dest)
+        else:
+            extract_model(archive, dest)
 
     if not is_model_ready(dest, preset=key):
         raise RuntimeError(f"Model files missing after extract: {dest}")

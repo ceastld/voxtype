@@ -25,8 +25,8 @@ class VoiceSession:
     def should_emit_partial(
         self,
         *,
-        min_interval_s: float = 0.22,
-        min_pcm_bytes: int = 9_600,
+        min_interval_s: float = 0.15,
+        min_pcm_bytes: int = 6_400,
     ) -> bool:
         if not self.streaming:
             return False

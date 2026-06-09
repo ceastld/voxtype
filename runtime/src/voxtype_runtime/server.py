@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-
-
+import asyncio
 import logging
 
 from typing import Any
@@ -118,11 +117,9 @@ class VoiceRuntimeApp:
         async for msg in ws:
 
             if msg.type == web.WSMsgType.BINARY:
-
-                for outbound in router.handle_pcm(msg.data):
-
-                    await ws.send_str(dumps(outbound))
-
+                outbound = await asyncio.to_thread(router.handle_pcm, msg.data)
+                for message in outbound:
+                    await ws.send_str(dumps(message))
                 continue
 
 

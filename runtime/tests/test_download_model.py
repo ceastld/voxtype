@@ -46,6 +46,34 @@ def test_load_sensevoice_identity_from_plugin_runtime_fallback(tmp_path: Path, m
     assert identity["id"] == "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17"
 
 
+def test_describe_funasr_nano_layout(tmp_path: Path) -> None:
+    dest = target_dir(tmp_path, "fun_asr_nano")
+    dest.mkdir(parents=True)
+    (dest / "encoder_adaptor.int8.onnx").write_bytes(b"x" * 1024)
+    (dest / "llm.int8.onnx").write_bytes(b"x" * 1024)
+    (dest / "embedding.int8.onnx").write_bytes(b"x" * 1024)
+    tok = dest / "Qwen3-0.6B"
+    tok.mkdir()
+    (tok / "tokenizer.json").write_text("{}", encoding="utf-8")
+    ready, err = describe_model_status(dest, preset="fun_asr_nano")
+    assert ready is True
+    assert err is None
+
+
+def test_describe_qwen_asr_layout(tmp_path: Path) -> None:
+    dest = target_dir(tmp_path, "qwen_asr")
+    dest.mkdir(parents=True)
+    (dest / "conv_frontend.onnx").write_bytes(b"x" * 1024)
+    (dest / "encoder.int8.onnx").write_bytes(b"x" * 1024)
+    (dest / "decoder.int8.onnx").write_bytes(b"x" * 1024)
+    tok = dest / "tokenizer"
+    tok.mkdir()
+    (tok / "vocab.json").write_text("{}", encoding="utf-8")
+    ready, err = describe_model_status(dest, preset="qwen_asr")
+    assert ready is True
+    assert err is None
+
+
 def test_remove_model_dir_clears_partial(tmp_path: Path) -> None:
     dest = target_dir(tmp_path, "paraformer")
     dest.mkdir(parents=True)

@@ -8,8 +8,8 @@
 |--------|----------------|---------|
 | `sensevoice` | Supported | sherpa-onnx |
 | `paraformer` | Supported | sherpa-onnx |
-| `fun_asr_nano` | Planned | ONNX + GGUF |
-| `qwen_asr` | Planned | ONNX + GGUF |
+| `fun_asr_nano` | Supported | sherpa-onnx |
+| `qwen_asr` | Supported | sherpa-onnx |
 
 ## Example entry
 

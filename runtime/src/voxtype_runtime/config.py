@@ -75,7 +75,7 @@ def load_config(argv: list[str] | None = None) -> RuntimeConfig:
     parser.add_argument(
         "--model-type",
         default=os.environ.get("VOXTYPE_MODEL_TYPE"),
-        help="sherpa model family: sensevoice | paraformer | whisper",
+        help="sherpa model family: sensevoice | paraformer | fun_asr_nano | qwen_asr | whisper",
     )
     parser.add_argument(
         "--log-level",

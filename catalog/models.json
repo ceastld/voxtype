@@ -82,24 +82,40 @@
     {
       "id": "fun-asr-nano",
       "name": "Fun-ASR-Nano",
-      "description": "高精度 · 需 ONNX+GGUF 引擎（开发中）",
+      "description": "高精度 · 中英日 · 方言与说唱 · 体积较大",
       "type": "fun_asr_nano",
       "runtimePreset": "fun_asr_nano",
       "layout": "fun-asr-nano",
-      "supported": false,
+      "supported": true,
       "default": false,
-      "download": { "source": "modelscope" }
+      "download": {
+        "source": "archive",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2",
+        "mirrorUrl": "https://ghfast.top/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2",
+        "fallbackUrls": [
+          "https://modelscope.cn/models/csukuangfj/asr-models/resolve/master/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2"
+        ],
+        "sizeBytes": 994000000
+      }
     },
     {
       "id": "qwen-asr",
       "name": "Qwen3-ASR",
-      "description": "最高精度 · 需 ONNX+GGUF 引擎（开发中）",
+      "description": "最高精度 · 噪声与快语速更稳 · 体积较大",
       "type": "qwen_asr",
       "runtimePreset": "qwen_asr",
       "layout": "qwen-asr",
-      "supported": false,
+      "supported": true,
       "default": false,
-      "download": { "source": "modelscope" }
+      "download": {
+        "source": "archive",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2",
+        "mirrorUrl": "https://ghfast.top/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2",
+        "fallbackUrls": [
+          "https://modelscope.cn/models/csukuangfj/asr-models/resolve/master/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2"
+        ],
+        "sizeBytes": 1200000000
+      }
     }
   ]
 }

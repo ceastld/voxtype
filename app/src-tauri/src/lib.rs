@@ -72,7 +72,6 @@ fn restart_runtime(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 async fn dictation_start(state: State<'_, AppState>) -> Result<(), String> {
-    state.inner().dictation.ensure_runtime().await?;
     state.inner().dictation.start_recording().await
 }
 

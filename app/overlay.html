@@ -147,7 +147,7 @@
       </div>
     </div>
     <script type="module">
-      import { listen } from "@tauri-apps/api/event";
+      import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
       const root = document.getElementById("root");
       const status = document.getElementById("status");
@@ -177,11 +177,12 @@
         }
       }
 
-      listen("overlay-phase", (ev) => {
+      const overlay = getCurrentWebviewWindow();
+      overlay.listen("overlay-phase", (ev) => {
         applyPhase(ev.payload);
       });
 
-      listen("overlay-partial", (ev) => {
+      overlay.listen("overlay-partial", (ev) => {
         const payload = ev.payload;
         if (typeof payload === "string") {
           setText(payload);

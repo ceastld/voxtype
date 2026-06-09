@@ -21,7 +21,7 @@ pub async fn download_model(app: &AppHandle, model_id: &str) -> Result<(), Strin
     let entry = find_catalog_entry(model_id)?;
     if !entry.supported {
         return Err(format!(
-            "「{}」尚未支持，请先在设置中选择 SenseVoice 或 Paraformer",
+            "「{}」尚未支持",
             entry.name
         ));
     }
@@ -43,6 +43,8 @@ pub async fn download_model(app: &AppHandle, model_id: &str) -> Result<(), Strin
 
     if entry.download.is_modelscope() {
         download_from_modelscope(app, &entry, &dest).await?;
+    } else if entry.download.is_archive() {
+        download_from_archive(app, &entry, &dest).await?;
     } else {
         download_from_zip(app, &entry, &dest).await?;
     }
@@ -299,6 +301,56 @@ async fn download_url_resumable(
     Ok(())
 }
 
+async fn download_from_archive(
+    app: &AppHandle,
+    entry: &ModelCatalogEntry,
+    dest: &Path,
+) -> Result<(), String> {
+    let archive_path = models_dir().join(format!("{}.tar.bz2", entry.id));
+    let (part_path, meta_path) = part_paths(&archive_path);
+    let urls = entry.download.candidate_zip_urls();
+    if urls.is_empty() {
+        return Err("模型配置缺少下载地址".into());
+    }
+
+    let mut last_err: Option<String> = None;
+    let mut ok = false;
+    for url in &urls {
+        match download_url_resumable(
+            app,
+            entry,
+            url,
+            &archive_path,
+            entry.download.size_bytes,
+            0,
+            1,
+        )
+        .await
+        {
+            Ok(()) => {
+                ok = true;
+                break;
+            }
+            Err(e) => {
+                last_err = Some(e);
+                let _ = fs::remove_file(&part_path);
+                let _ = fs::remove_file(&meta_path);
+                let _ = fs::remove_file(&archive_path);
+            }
+        }
+    }
+    if !ok {
+        return Err(last_err.unwrap_or_else(|| "所有下载源均失败".into()));
+    }
+
+    if let Some(expected) = &entry.download.sha256 {
+        verify_sha256_file(&archive_path, expected)?;
+    }
+    extract_tar_bz2(&archive_path, dest)?;
+    let _ = fs::remove_file(&archive_path);
+    Ok(())
+}
+
 async fn download_from_zip(
     app: &AppHandle,
     entry: &ModelCatalogEntry,
@@ -375,6 +427,56 @@ fn verify_sha256_file(path: &Path, expected_hex: &str) -> Result<(), String> {
 
 fn verify_file_sha256(path: &Path, expected_hex: &str) -> Result<(), String> {
     verify_sha256_file(path, expected_hex)
+}
+
+fn extract_tar_bz2(archive_path: &Path, dest: &Path) -> Result<(), String> {
+    use bzip2::read::BzDecoder;
+    use tar::Archive;
+
+    if dest.exists() {
+        fs::remove_dir_all(dest).map_err(|e| e.to_string())?;
+    }
+
+    let temp = std::env::temp_dir().join(format!("voxtype-extract-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&temp).map_err(|e| e.to_string())?;
+
+    let file = File::open(archive_path).map_err(|e| e.to_string())?;
+    let decoder = BzDecoder::new(file);
+    let mut archive = Archive::new(decoder);
+    archive.unpack(&temp).map_err(|e| e.to_string())?;
+
+    let mut children: Vec<PathBuf> = fs::read_dir(&temp)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok().map(|d| d.path()))
+        .collect();
+    let source = if children.len() == 1 && children[0].is_dir() {
+        children.remove(0)
+    } else {
+        temp.clone()
+    };
+
+    copy_dir_recursive(&source, dest)?;
+    let test_wavs = dest.join("test_wavs");
+    if test_wavs.is_dir() {
+        let _ = fs::remove_dir_all(&test_wavs);
+    }
+    let _ = fs::remove_dir_all(&temp);
+    Ok(())
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        let target = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_recursive(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 fn extract_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
