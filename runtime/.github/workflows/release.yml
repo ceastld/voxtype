@@ -1,0 +1,180 @@
+name: Release voice-asr-runtime
+
+# Runtime: tag v*.*.* â€?PyInstaller zip + channel manifest â†?GitHub Release + Bitiful mirror.
+# Model:   tag model-sensevoice â€?versionless model zip â†?GitHub Release + Bitiful mirror.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'model-sensevoice'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (v0.1.1 or model-sensevoice)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: voice-asr-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      BITIFUL_ENDPOINT_URL: ${{ vars.BITIFUL_ENDPOINT_URL }}
+      BITIFUL_VOICE_ASR_OBJECT_PREFIX: ${{ vars.BITIFUL_VOICE_ASR_OBJECT_PREFIX }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Resolve tag and version
+        id: meta
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $tag = '${{ inputs.tag }}'.Trim()
+          } else {
+            $tag = '${{ github.ref_name }}'.Trim()
+          }
+          $isModel = ($tag -eq 'model-sensevoice')
+          if (-not $isModel -and $tag -notmatch '^v\d') {
+            throw "Runtime tag must look like v0.1.0, got: $tag"
+          }
+          $version = if ($isModel) { '' } else { $tag.Substring(1) }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "is_model=$isModel" >> $env:GITHUB_OUTPUT
+          if (-not $isModel) {
+            "runtime_zip=voice-asr-runtime-$version-win-x64.zip" >> $env:GITHUB_OUTPUT
+          }
+          "model_zip=voice-asr-model-sensevoice.zip" >> $env:GITHUB_OUTPUT
+
+      - name: Setup uv
+        if: steps.meta.outputs.is_model != 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build runtime and package runtime zip
+        if: steps.meta.outputs.is_model != 'true'
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File ./scripts/build-win.ps1
+          pwsh -NoProfile -File ./scripts/package-runtime.ps1 -Version '${{ steps.meta.outputs.version }}'
+
+      - name: Package model zip
+        if: steps.meta.outputs.is_model == 'true'
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File ./scripts/package-model.ps1
+
+      - name: Write channel manifest artifact
+        if: steps.meta.outputs.is_model != 'true'
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File ./scripts/package-model.ps1
+          pwsh -NoProfile -File ./publish/Write-VoicePluginChannelManifest.ps1 `
+            -Version '${{ steps.meta.outputs.version }}' `
+            -RuntimeTag '${{ steps.meta.outputs.tag }}' `
+            -ModelTag 'model-sensevoice' `
+            -OutputPath ./publish/voice-plugin-channel.generated.json
+
+      - name: Publish runtime GitHub Release
+        if: steps.meta.outputs.is_model != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: voxtype-runtime ${{ steps.meta.outputs.tag }}
+          files: |
+            publish/${{ steps.meta.outputs.runtime_zip }}
+            publish/voice-plugin-channel.generated.json
+          generate_release_notes: true
+
+      - name: Publish model GitHub Release
+        if: steps.meta.outputs.is_model == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: model-sensevoice
+          name: SenseVoice model (voice-asr)
+          files: |
+            publish/${{ steps.meta.outputs.model_zip }}
+          generate_release_notes: false
+          body: |
+            Versionless SenseVoice model pack. Update this release only when model files change.
+
+      - name: Detect Bitiful credentials
+        id: bitiful
+        shell: pwsh
+        env:
+          BITIFUL_ACCESS_KEY: ${{ secrets.BITIFUL_ACCESS_KEY }}
+          BITIFUL_SECRET_KEY: ${{ secrets.BITIFUL_SECRET_KEY }}
+          BITIFUL_BUCKET_NAME: ${{ secrets.BITIFUL_BUCKET_NAME }}
+        run: |
+          $missing = @()
+          if ([string]::IsNullOrWhiteSpace($env:BITIFUL_ACCESS_KEY)) { $missing += 'BITIFUL_ACCESS_KEY' }
+          if ([string]::IsNullOrWhiteSpace($env:BITIFUL_SECRET_KEY)) { $missing += 'BITIFUL_SECRET_KEY' }
+          if ([string]::IsNullOrWhiteSpace($env:BITIFUL_BUCKET_NAME)) { $missing += 'BITIFUL_BUCKET_NAME' }
+          if ($missing.Count -gt 0) {
+            Write-Host "::warning::Bitiful secrets missing ($($missing -join ', ')) â€?skipping CDN mirror upload. GitHub Release assets are still published."
+            "enabled=false" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host 'Bitiful credentials present â€?upload will run after GitHub Release.'
+            "enabled=true" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Upload runtime to Bitiful
+        if: steps.meta.outputs.is_model != 'true' && steps.bitiful.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          BITIFUL_ACCESS_KEY: ${{ secrets.BITIFUL_ACCESS_KEY }}
+          BITIFUL_SECRET_KEY: ${{ secrets.BITIFUL_SECRET_KEY }}
+          BITIFUL_BUCKET_NAME: ${{ secrets.BITIFUL_BUCKET_NAME }}
+        run: |
+          python -m pip install --disable-pip-version-check --quiet boto3
+          $endpoint = if ($env:BITIFUL_ENDPOINT_URL) { $env:BITIFUL_ENDPOINT_URL.Trim() } else { 'https://s3.bitiful.net' }
+          $prefix = if ($env:BITIFUL_VOICE_ASR_OBJECT_PREFIX) { $env:BITIFUL_VOICE_ASR_OBJECT_PREFIX.Trim().Trim('/') } else { 'quicker-rpc/voice-asr' }
+          $zip = Join-Path $PWD "publish/${{ steps.meta.outputs.runtime_zip }}"
+          if (-not (Test-Path -LiteralPath $zip)) { throw "Missing runtime zip: $zip" }
+          python ./publish/bitiful_upload.py $zip --asset --endpoint-url $endpoint --object-prefix $prefix --version '${{ steps.meta.outputs.version }}'
+          $objectKey = "$prefix/${{ steps.meta.outputs.runtime_zip }}"
+          $objectUrl = "$($endpoint.TrimEnd('/'))/$($env:BITIFUL_BUCKET_NAME)/$objectKey"
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value @"
+          ### Bitiful upload (runtime)
+          - File: ``${{ steps.meta.outputs.runtime_zip }}``
+          - version.txt: ``$prefix/version.txt`` â†?``${{ steps.meta.outputs.version }}``
+          - URL: $objectUrl
+          "@
+
+      - name: Upload model to Bitiful
+        if: steps.meta.outputs.is_model == 'true' && steps.bitiful.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          BITIFUL_ACCESS_KEY: ${{ secrets.BITIFUL_ACCESS_KEY }}
+          BITIFUL_SECRET_KEY: ${{ secrets.BITIFUL_SECRET_KEY }}
+          BITIFUL_BUCKET_NAME: ${{ secrets.BITIFUL_BUCKET_NAME }}
+        run: |
+          python -m pip install --disable-pip-version-check --quiet boto3
+          $endpoint = if ($env:BITIFUL_ENDPOINT_URL) { $env:BITIFUL_ENDPOINT_URL.Trim() } else { 'https://s3.bitiful.net' }
+          $prefix = if ($env:BITIFUL_VOICE_ASR_OBJECT_PREFIX) { $env:BITIFUL_VOICE_ASR_OBJECT_PREFIX.Trim().Trim('/') } else { 'quicker-rpc/voice-asr' }
+          $zip = Join-Path $PWD "publish/${{ steps.meta.outputs.model_zip }}"
+          if (-not (Test-Path -LiteralPath $zip)) { throw "Missing model zip: $zip" }
+          python ./publish/bitiful_upload.py $zip --asset --endpoint-url $endpoint --object-prefix $prefix
+          $objectKey = "$prefix/${{ steps.meta.outputs.model_zip }}"
+          $objectUrl = "$($endpoint.TrimEnd('/'))/$($env:BITIFUL_BUCKET_NAME)/$objectKey"
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value @"
+          ### Bitiful upload (model)
+          - File: ``${{ steps.meta.outputs.model_zip }}``
+          - URL: $objectUrl
+          "@

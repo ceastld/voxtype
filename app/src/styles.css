@@ -1,0 +1,123 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: #0f1117;
+  color: #e8eaed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 8px;
+}
+
+.sub {
+  color: #9aa0a6;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: #1a1d27;
+  border: 1px solid #2a2f3a;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+label {
+  min-width: 120px;
+  color: #9aa0a6;
+}
+
+select,
+input {
+  flex: 1;
+  background: #0f1117;
+  border: 1px solid #3c4048;
+  color: inherit;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+button {
+  background: #4f8cff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #2a2f3a;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status {
+  font-size: 0.9rem;
+  color: #9aa0a6;
+}
+
+.status.ok {
+  color: #6dd58c;
+}
+
+.status.err {
+  color: #f28b82;
+}
+
+.progress {
+  height: 6px;
+  background: #2a2f3a;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  background: #4f8cff;
+  transition: width 0.2s;
+}
+
+.model-item {
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.model-item.active {
+  border-color: #4f8cff;
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "id": "sensevoice-int8",
+      "name": "SenseVoice 中文（推荐）",
+      "description": "Offline Chinese ASR with punctuation (~160 MB)",
+      "type": "sensevoice",
+      "default": true,
+      "download": {
+        "url": "https://github.com/ceastld/voxtype/releases/download/model-sensevoice/voxtype-model-sensevoice.zip",
+        "sha256": null,
+        "sizeBytes": 167772160
+      },
+      "layout": "sensevoice"
+    },
+    {
+      "id": "paraformer-zh-small",
+      "name": "Paraformer 中文轻量",
+      "description": "Smaller Chinese model, no auto punctuation",
+      "type": "paraformer",
+      "default": false,
+      "download": {
+        "url": "https://github.com/ceastld/voxtype/releases/download/model-paraformer/voxtype-model-paraformer-zh.zip",
+        "sha256": null,
+        "sizeBytes": 83886080
+      },
+      "layout": "paraformer-zh"
+    }
+  ]
+}

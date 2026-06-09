@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <QuickerDllPath Condition="'$(QuickerDllPath)' == ''">$(QUICKER_DLL_PATH)</QuickerDllPath>
+    <_QuickerReleasePath Condition="'$(QuickerDllPath)' == ''">C:\Program Files\Quicker</_QuickerReleasePath>
+    <QuickerDllPath Condition="'$(QuickerDllPath)' == ''">$(_QuickerReleasePath)</QuickerDllPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Quicker">
+      <HintPath>$(QuickerDllPath)\Quicker.exe</HintPath>
+      <SpecificVersion>false</SpecificVersion>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,32 @@
+# Python runtime
+runtime/.venv/
+runtime/dist/
+runtime/build/
+runtime/**/__pycache__/
+runtime/**/*.pyc
+runtime/.pytest_cache/
+runtime/publish/*.zip
+runtime/models/**/*.onnx
+runtime/models/**/tokens.txt
+runtime/models/paraformer-zh/
+runtime/models/sensevoice/
+
+# Tauri app
+app/node_modules/
+app/dist/
+app/src-tauri/target/
+app/src-tauri/gen/
+
+# Plugin
+plugin/bin/
+plugin/obj/
+
+# OS
+.DS_Store
+Thumbs.db
+*.user
+*.suo
+
+# Local
+.env
+.local/
