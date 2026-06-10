@@ -1,6 +1,6 @@
 {
-  "clientVersion": "0.1.10",
-  "installerUrl": "https://github.com/ceastld/voxtype/releases/download/v0.1.10/VoxType_0.1.10_x64-setup.exe",
+  "clientVersion": "0.1.11",
+  "installerUrl": "https://github.com/ceastld/voxtype/releases/download/v0.1.11/VoxType_0.1.11_x64-setup.exe",
   "installerMirrorUrl": "",
-  "installerSha256": "4ed0fd610ea2ba00d2e9a018c665a6857be1e99d71538fc2723cbf7f7806936c"
+  "installerSha256": "395d826d4d601f7898047841823f31422d42f85a1d4d739095134d81f6578b68"
 }
