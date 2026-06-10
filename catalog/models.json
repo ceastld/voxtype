@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "notes": "Bundled in installer as catalog/models.json (ModelScope download URLs). Override: %LOCALAPPDATA%\\VoxType\\catalog\\models.json",
   "models": [
     {
@@ -82,39 +82,41 @@
     {
       "id": "fun-asr-nano",
       "name": "Fun-ASR-Nano",
-      "description": "高精度 · 中英日 · 方言与说唱 · 体积较大",
+      "description": "ONNX+GGUF 混合 · 中英日方言 · 比纯 ONNX 更快更省显存",
       "type": "fun_asr_nano",
       "runtimePreset": "fun_asr_nano",
+      "engineBackend": "onnx_gguf",
       "layout": "fun-asr-nano",
       "supported": true,
       "default": false,
       "download": {
-        "source": "archive",
-        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2",
-        "mirrorUrl": "https://ghfast.top/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2",
+        "source": "zip",
+        "url": "https://github.com/HaujetZhao/CapsWriter-Offline/releases/download/models/Fun-ASR-Nano-GGUF.zip",
+        "mirrorUrl": "https://ghfast.top/https://github.com/HaujetZhao/CapsWriter-Offline/releases/download/models/Fun-ASR-Nano-GGUF.zip",
         "fallbackUrls": [
-          "https://modelscope.cn/models/csukuangfj/asr-models/resolve/master/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2"
+          "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2"
         ],
-        "sizeBytes": 994000000
+        "sizeBytes": 834000000
       }
     },
     {
       "id": "qwen-asr",
       "name": "Qwen3-ASR",
-      "description": "最高精度 · 噪声与快语速更稳 · 体积较大",
+      "description": "ONNX+GGUF 混合 · 最高精度 · 长音频更稳",
       "type": "qwen_asr",
       "runtimePreset": "qwen_asr",
+      "engineBackend": "onnx_gguf",
       "layout": "qwen-asr",
       "supported": true,
       "default": false,
       "download": {
-        "source": "archive",
-        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2",
-        "mirrorUrl": "https://ghfast.top/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2",
+        "source": "zip",
+        "url": "https://github.com/HaujetZhao/Qwen3-ASR-GGUF/releases/download/models/Qwen3-ASR-0.6B-gguf.zip",
+        "mirrorUrl": "https://ghfast.top/https://github.com/HaujetZhao/Qwen3-ASR-GGUF/releases/download/models/Qwen3-ASR-0.6B-gguf.zip",
         "fallbackUrls": [
-          "https://modelscope.cn/models/csukuangfj/asr-models/resolve/master/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2"
+          "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2"
         ],
-        "sizeBytes": 1200000000
+        "sizeBytes": 564000000
       }
     }
   ]

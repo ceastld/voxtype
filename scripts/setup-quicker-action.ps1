@@ -1,15 +1,10 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-  Scaffold a Quicker shared action that toggles VoxType dictation via the plugin.
-
-.PREREQUISITES
-  - Quicker + QuickerRpc plugin loaded
-  - qkrpc on PATH (build.ps1 -t from quicker-rpc)
-  - VoxType.Plugin built and installed in Quicker
+  Scaffold a Quicker shared action for VoxType voice dictation.
 
 .EXAMPLE
-  pwsh -NoProfile -File ./scripts/setup-quicker-action.ps1 -ActionName "语音输入"
+  pwsh -NoProfile -File ./scripts/setup-quicker-action.ps1
 #>
 param(
     [string]$ActionName = "VoxType 语音输入"
@@ -17,33 +12,38 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "==> VoxType Quicker action setup" -ForegroundColor Cyan
+Write-Host "==> VoxType Quicker integration" -ForegroundColor Cyan
 Write-Host @"
 
-Manual steps (qkrpc headless authoring):
+Architecture: Quicker -> VoxType.Plugin (HTTP) -> VoxType.exe :6020
 
-1. Install VoxType client (NSIS) and VoxType.Plugin to Quicker.
-2. Create action "$ActionName" with steps:
-   - [子程序] 确保 VoxType 运行 → C# 脚本或 运行程序 启动 VoxType.exe
-   - [运行 C# 脚本] 调用 VoxType.Plugin.Launcher.Start()
-     或拆成两个动作：StartDictation / StopDictation（按住模式）
-3. Publish shared action:
-   qkrpc action update --id <shared-guid> --json
+1. Build plugin:
+     cd plugin && dotnet build -c Release
+   Copy bin/Release/net472/VoxType.Plugin.dll + voxtype-plugin-channel.json to action package.
 
-Plugin entry points (Quicker C# 模块):
-  VoxType.Plugin.Launcher.Start()           # toggle
-  VoxType.Plugin.Launcher.StartDictation()  # hold press
-  VoxType.Plugin.Launcher.StopDictation()     # hold release
+2. Register subprogram:
+     load {packagePath}/VoxType.Plugin.*.dll
+     type VoxType.Plugin.Launcher, VoxType.Plugin
 
-HTTP API (no plugin):
-  POST http://127.0.0.1:6020/dictate/toggle
+3. First-run action "$ActionName":
+   - If not installed: Launcher.DownloadInstaller() -> open voxtype_installer_path (user runs NSIS)
+   - Else: Launcher.Start() or hold StartDictation/StopDictation
+
+quicker_in_param modes:
+  ?start    POST /dictate/start
+  ?stop     POST /dictate/stop     -> voxtype_text
+  ?toggle   POST /dictate/toggle
+  ?download download NSIS          -> voxtype_installer_path
+  ?ensure   launch VoxType.exe only
+
+HTTP (no plugin):
+  GET  http://127.0.0.1:6020/health
+  POST http://127.0.0.1:6020/dictate/start|stop|toggle
+
+Design doc (HTTP vs pipe): quicker-rpc/docs/voxtype-quicker-integration.md
 
 "@ -ForegroundColor DarkGray
 
 if (Get-Command qkrpc -ErrorAction SilentlyContinue) {
-    Write-Host "==> qkrpc guide (authoring)" -ForegroundColor Cyan
-    qkrpc guide get --topic authoring-workflow --json | Out-Null
-    Write-Host "    qkrpc available — use action create / workspace_program to author steps." -ForegroundColor Green
-} else {
-    Write-Host "    qkrpc not found — install quicker-rpc CLI first." -ForegroundColor Yellow
+    Write-Host "qkrpc available — use workspace_program to author steps." -ForegroundColor Green
 }

@@ -15,10 +15,10 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
 
-Write-Host "==> uv sync (voice-asr-runtime)" -ForegroundColor Cyan
-uv sync 2>$null
+Write-Host "==> uv sync (voice-asr-runtime + onnx-gguf)" -ForegroundColor Cyan
+uv sync --extra onnx-gguf 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "    uv sync skipped (dev runtime may be running â€?lock on voxtype-runtime.exe)" -ForegroundColor DarkYellow
+    Write-Host "    uv sync skipped (dev runtime may be running â€” lock on voxtype-runtime.exe)" -ForegroundColor DarkYellow
 }
 
 $PyInstaller = Join-Path $Root ".venv" "Scripts" "pyinstaller.exe"
@@ -62,7 +62,7 @@ if ($InstallToDevPlugin) {
         Copy-Item -Path (Join-Path $ModelSrc "*") -Destination $ModelDst -Recurse -Force
         Write-Host "    copied model to $ModelDst" -ForegroundColor DarkGray
     } else {
-        Write-Host "    model not found â€?run: uv run download-asr-model" -ForegroundColor DarkYellow
+        Write-Host "    model not found Ã¢â‚¬?run: uv run download-asr-model" -ForegroundColor DarkYellow
     }
 
     $ManifestSrc = Join-Path $Root "manifest.example.json"

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, State, WindowEvent,
+    AppHandle, Emitter, Manager, State, WindowEvent,
 };
 
 struct AppState {
@@ -79,8 +79,14 @@ fn set_use_gpu(use_gpu: bool, state: State<'_, AppState>) -> Result<(), String> 
 }
 
 #[tauri::command]
-async fn download_model(app: AppHandle, model_id: String) -> Result<(), String> {
-    model_download::download_model(&app, &model_id).await
+async fn download_model(
+    app: AppHandle,
+    model_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    model_download::download_model(&app, &model_id).await?;
+    let _ = state.inner().dictation.restart_runtime();
+    Ok(())
 }
 
 #[tauri::command]
@@ -140,6 +146,23 @@ pub fn run() {
         })
         .setup(move |app| {
             dictation_for_setup.set_app(app.handle().clone());
+
+            let dictation_watch = Arc::clone(&dictation_for_setup);
+            let app_watch = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut last_ready: Option<bool> = None;
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    let ready = dictation_watch.runtime_ready().await;
+                    if last_ready != Some(ready) {
+                        last_ready = Some(ready);
+                        let _ = app_watch.emit(
+                            "runtime-status-changed",
+                            serde_json::json!({ "ready": ready }),
+                        );
+                    }
+                }
+            });
 
             overlay::prepare_overlay(&app.handle());
 

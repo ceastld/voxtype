@@ -60,6 +60,29 @@ def test_describe_funasr_nano_layout(tmp_path: Path) -> None:
     assert err is None
 
 
+def test_describe_funasr_hybrid_layout(tmp_path: Path) -> None:
+    dest = target_dir(tmp_path, "fun_asr_nano_hybrid")
+    dest.mkdir(parents=True)
+    (dest / "Fun-ASR-Nano-Encoder-Adaptor.int4.onnx").write_bytes(b"x" * 1024)
+    (dest / "Fun-ASR-Nano-CTC.int4.onnx").write_bytes(b"x" * 1024)
+    (dest / "Fun-ASR-Nano-Decoder.q5_k.gguf").write_bytes(b"x" * 1024)
+    (dest / "tokens.txt").write_text("a", encoding="utf-8")
+    ready, err = describe_model_status(dest, preset="fun_asr_nano_hybrid")
+    assert ready is True
+    assert err is None
+
+
+def test_describe_qwen_hybrid_layout(tmp_path: Path) -> None:
+    dest = target_dir(tmp_path, "qwen_asr_hybrid")
+    dest.mkdir(parents=True)
+    (dest / "qwen3_asr_encoder_frontend.fp16.onnx").write_bytes(b"x" * 1024)
+    (dest / "qwen3_asr_encoder_backend.fp16.onnx").write_bytes(b"x" * 1024)
+    (dest / "qwen3_asr_llm.q5_k.gguf").write_bytes(b"x" * 1024)
+    ready, err = describe_model_status(dest, preset="qwen_asr_hybrid")
+    assert ready is True
+    assert err is None
+
+
 def test_describe_qwen_asr_layout(tmp_path: Path) -> None:
     dest = target_dir(tmp_path, "qwen_asr")
     dest.mkdir(parents=True)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any
 
 from voxtype_runtime.protocol import PROTOCOL_VERSION, loads
@@ -9,6 +8,17 @@ from voxtype_runtime.recognizer.base import Recognizer
 from voxtype_runtime.session import VoiceSession
 
 logger = logging.getLogger(__name__)
+
+# ONNX+GGUF decode is heavy; throttle partials but keep live overlay updates.
+_HYBRID_MODEL_IDS = frozenset({"qwen_asr", "fun_asr_nano"})
+
+
+def _partial_policy(model_id: str) -> tuple[float, int, int]:
+    """Return (min_interval_s, min_pcm_bytes, min_new_pcm_bytes)."""
+    if model_id in _HYBRID_MODEL_IDS:
+        # ~1s before first partial, then every ~0.8s if >=0.5s new audio
+        return 0.8, 32_000, 16_000
+    return 0.15, 6_400, 3_200
 
 
 class VoiceSessionRouter:
@@ -77,11 +87,11 @@ class VoiceSessionRouter:
                 language=session.language,
             )
         except Exception:
+            logger.debug("partial transcribe failed", exc_info=True)
             return []
         if not text or text == session.last_partial_text:
             return []
-        session.last_partial_text = text
-        session.last_partial_at = time.monotonic()
+        session.mark_partial_emitted(text)
         return [
             {
                 "type": "partial",
@@ -121,11 +131,15 @@ class VoiceSessionRouter:
                 }
             ]
 
+        interval, min_pcm, min_new = _partial_policy(self._recognizer.model_id)
         self._active = VoiceSession(
             session_id=session_id,
             language=str(payload.get("language") or "zh-CN"),
             streaming=bool(payload.get("streaming")),
             sample_rate=int(payload.get("sampleRate") or 16_000),
+            partial_min_interval_s=interval,
+            partial_min_pcm_bytes=min_pcm,
+            partial_min_new_pcm_bytes=min_new,
         )
         return [{"type": "session.started", "sessionId": session_id}]
 

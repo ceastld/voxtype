@@ -10,6 +10,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,14 @@ PARAFORMER_MODELSCOPE_FILES = (
     "config.yaml",
 )
 
+FUNASR_NANO_HYBRID_ZIP_URL = (
+    "https://github.com/HaujetZhao/CapsWriter-Offline/releases/download/models/"
+    "Fun-ASR-Nano-GGUF.zip"
+)
+QWEN3_ASR_HYBRID_ZIP_URL = (
+    "https://github.com/HaujetZhao/Qwen3-ASR-GGUF/releases/download/models/"
+    "Qwen3-ASR-0.6B-gguf.zip"
+)
 FUNASR_NANO_ARCHIVE_URL = (
     "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
     "sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2"
@@ -57,14 +66,24 @@ MODEL_PRESETS: dict[str, dict[str, str]] = {
         "label": "Paraformer zh-small (~76MB)",
     },
     "fun_asr_nano": {
-        "url": FUNASR_NANO_ARCHIVE_URL,
+        "url": FUNASR_NANO_HYBRID_ZIP_URL,
         "dir": "fun-asr-nano",
-        "label": "FunASR-Nano int8 (~950MB, zh/en/ja + dialects)",
+        "label": "FunASR-Nano ONNX+GGUF hybrid (~800MB)",
     },
     "qwen_asr": {
-        "url": QWEN3_ASR_ARCHIVE_URL,
+        "url": QWEN3_ASR_HYBRID_ZIP_URL,
         "dir": "qwen-asr",
-        "label": "Qwen3-ASR 0.6B int8 (high accuracy, large)",
+        "label": "Qwen3-ASR 0.6B ONNX+GGUF hybrid (~540MB)",
+    },
+    "fun_asr_nano_hybrid": {
+        "url": FUNASR_NANO_HYBRID_ZIP_URL,
+        "dir": "fun-asr-nano",
+        "label": "FunASR-Nano ONNX+GGUF hybrid (encoder/CTC ONNX + decoder GGUF)",
+    },
+    "qwen_asr_hybrid": {
+        "url": QWEN3_ASR_HYBRID_ZIP_URL,
+        "dir": "qwen-asr",
+        "label": "Qwen3-ASR ONNX+GGUF hybrid (encoder ONNX + decoder GGUF)",
     },
 }
 DEFAULT_PRESET = "sensevoice"
@@ -142,6 +161,10 @@ def resolve_preset(name: str | None = None) -> str:
         return "fun_asr_nano"
     if raw in {"qwen_asr", "qwen3_asr", "qwen-asr", "qwen3-asr"}:
         return "qwen_asr"
+    if raw in {"fun_asr_nano_hybrid", "funasr_nano_hybrid", "fun-asr-nano-hybrid"}:
+        return "fun_asr_nano_hybrid"
+    if raw in {"qwen_asr_hybrid", "qwen3_asr_hybrid", "qwen-asr-hybrid"}:
+        return "qwen_asr_hybrid"
     return DEFAULT_PRESET
 
 
@@ -208,6 +231,9 @@ def _has_tokenizer_dir(dest: Path) -> bool:
 
 
 def _is_funasr_nano_ready(dest: Path) -> tuple[bool, str | None]:
+    ok, _ = _is_funasr_hybrid_ready(dest)
+    if ok:
+        return True, None
     missing = [
         stem
         for stem in ("encoder_adaptor", "llm", "embedding")
@@ -220,7 +246,32 @@ def _is_funasr_nano_ready(dest: Path) -> tuple[bool, str | None]:
     return True, None
 
 
+def _is_funasr_hybrid_ready(dest: Path) -> tuple[bool, str | None]:
+    try:
+        from voxtype_runtime.recognizer.onnx_gguf_layout import resolve_funasr_hybrid_paths
+
+        if resolve_funasr_hybrid_paths(dest) is not None:
+            return True, None
+    except Exception:
+        pass
+    return False, "缺少 ONNX+GGUF 混合模型文件（encoder/CTC ONNX + decoder GGUF + tokens.txt）"
+
+
+def _is_qwen_hybrid_ready(dest: Path) -> tuple[bool, str | None]:
+    try:
+        from voxtype_runtime.recognizer.onnx_gguf_layout import resolve_qwen_hybrid_paths
+
+        if resolve_qwen_hybrid_paths(dest) is not None:
+            return True, None
+    except Exception:
+        pass
+    return False, "缺少 ONNX+GGUF 混合模型文件（encoder frontend/backend ONNX + decoder GGUF）"
+
+
 def _is_qwen_asr_ready(dest: Path) -> tuple[bool, str | None]:
+    ok, _ = _is_qwen_hybrid_ready(dest)
+    if ok:
+        return True, None
     if not (dest / "conv_frontend.onnx").is_file():
         return False, "缺少 conv_frontend.onnx"
     missing = [stem for stem in ("encoder", "decoder") if not _has_onnx_stem(dest, stem)]
@@ -243,8 +294,12 @@ def describe_model_status(
         return False, "模型目录不存在"
     if key == "fun_asr_nano":
         return _is_funasr_nano_ready(path)
+    if key == "fun_asr_nano_hybrid":
+        return _is_funasr_hybrid_ready(path)
     if key == "qwen_asr":
         return _is_qwen_asr_ready(path)
+    if key == "qwen_asr_hybrid":
+        return _is_qwen_hybrid_ready(path)
     if key == "sensevoice":
         try:
             verify_sensevoice_files(path)
@@ -456,6 +511,21 @@ def extract_archive_tree(archive: Path, dest: Path) -> None:
     report_download_progress(95, "解压完成")
 
 
+def extract_zip_tree(archive: Path, dest: Path) -> None:
+    """Extract ONNX+GGUF hybrid zip (flatten single top-level folder)."""
+    report_download_progress(86, "正在解压模型文件…")
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+    with tempfile.TemporaryDirectory(prefix="voxtype-extract-") as tmp:
+        tmp_path = Path(tmp)
+        with zipfile.ZipFile(archive, "r") as zf:
+            zf.extractall(tmp_path)
+        children = [p for p in tmp_path.iterdir() if p.name not in {".", ".."}]
+        source = children[0] if len(children) == 1 and children[0].is_dir() else tmp_path
+        shutil.copytree(source, dest)
+    report_download_progress(95, "解压完成")
+
+
 def download_sensevoice_from_archive(dest: Path) -> None:
     identity = load_sensevoice_identity()
     archive_url = str(identity.get("upstream") or SENSEVOICE_ARCHIVE_URL)
@@ -494,6 +564,18 @@ def ensure_sensevoice_model(root: Path | None = None, *, force: bool = False) ->
     )
 
 
+def ensure_hybrid_model(
+    root: Path | None = None,
+    preset: str | None = None,
+    *,
+    force: bool = False,
+) -> Path:
+    key = resolve_preset(preset)
+    if key not in {"fun_asr_nano_hybrid", "qwen_asr_hybrid"}:
+        raise RuntimeError(f"Not a hybrid preset: {key}")
+    return ensure_asr_model(root, preset=key, force=force)
+
+
 def ensure_asr_model(
     root: Path | None = None,
     preset: str | None = None,
@@ -501,6 +583,8 @@ def ensure_asr_model(
     force: bool = False,
 ) -> Path:
     key = resolve_preset(preset)
+    if key in {"fun_asr_nano_hybrid", "qwen_asr_hybrid"}:
+        return ensure_hybrid_model(root, preset=key, force=force)
     if key == "sensevoice":
         return ensure_sensevoice_model(root, force=force)
 
@@ -517,7 +601,9 @@ def ensure_asr_model(
     with tempfile.TemporaryDirectory(prefix="voxtype-model-") as tmp:
         archive = Path(tmp) / archive_name
         download_archive(preset_info["url"], archive)
-        if key in {"fun_asr_nano", "qwen_asr"}:
+        if archive.suffix.lower() == ".zip":
+            extract_zip_tree(archive, dest)
+        elif key in {"fun_asr_nano", "qwen_asr"}:
             extract_archive_tree(archive, dest)
         else:
             extract_model(archive, dest)

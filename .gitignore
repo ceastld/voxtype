@@ -33,3 +33,6 @@ Thumbs.db
 # Local
 .env
 .local/
+
+# ONNX+GGUF engine repos (cloned by scripts/bootstrap-third-party.ps1)
+third_party/

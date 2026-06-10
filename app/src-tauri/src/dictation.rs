@@ -755,9 +755,9 @@ pub fn update_hotkey_mode_setting(mode: &str) -> Result<(), String> {
 
     let normalized = mode.trim().to_lowercase();
 
-    if normalized != "hold" && normalized != "toggle" {
+    if normalized != "auto" && normalized != "hold" && normalized != "toggle" {
 
-        return Err("hotkeyMode 必须是 hold 或 toggle".into());
+        return Err("hotkeyMode 必须是 auto、hold 或 toggle".into());
 
     }
 

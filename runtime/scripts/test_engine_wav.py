@@ -9,7 +9,7 @@ import wave
 from pathlib import Path
 
 from voxtype_runtime.download_model import ensure_asr_model, resolve_preset, target_dir
-from voxtype_runtime.recognizer.sherpa_onnx import try_create_sherpa_recognizer
+from voxtype_runtime.recognizer import create_recognizer
 
 
 def wav_to_pcm_s16le(path: Path) -> tuple[bytes, int]:
@@ -43,7 +43,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.download and not model_dir.is_dir():
         model_dir = ensure_asr_model(args.root, preset=preset)
 
-    recognizer = try_create_sherpa_recognizer(
+    recognizer = create_recognizer(
         model_dir,
         preset,
         provider=args.provider,

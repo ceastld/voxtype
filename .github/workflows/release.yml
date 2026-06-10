@@ -1,92 +1,96 @@
-name: Release VoxType
-
-# Single NSIS installer: Tauri app + bundled ASR runtime + catalog/models.json.
-# Speech models are downloaded on first use from ModelScope (see catalog/models.json).
-
-on:
-  push:
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release tag (e.g. v0.1.0)'
-        required: true
-        type: string
-
-permissions:
-  contents: write
-
-concurrency:
-  group: voxtype-release-${{ github.ref }}
-  cancel-in-progress: false
-
-jobs:
-  release:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-
-      - name: Resolve tag
-        id: meta
-        shell: pwsh
-        run: |
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            $tag = '${{ inputs.tag }}'.Trim()
-          } else {
-            $tag = '${{ github.ref_name }}'.Trim()
-          }
-          if ($tag -notmatch '^v\d') { throw "Tag must look like v0.1.0, got: $tag" }
-          $version = $tag.Substring(1)
-          "tag=$tag" >> $env:GITHUB_OUTPUT
-          "version=$version" >> $env:GITHUB_OUTPUT
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Build ASR runtime
-        shell: pwsh
-        working-directory: runtime
-        run: pwsh -NoProfile -File ./scripts/build-win.ps1
-
-      - name: Stage runtime and sync version
-        shell: pwsh
-        run: pwsh -NoProfile -File ./scripts/prepare-tauri-build.ps1 -Version '${{ steps.meta.outputs.version }}'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: app/pnpm-lock.yaml
-
-      - name: Build Tauri installer
-        shell: pwsh
-        working-directory: app
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm tauri build
-
-      - name: Upload GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: VoxType ${{ steps.meta.outputs.tag }}
-          files: app/src-tauri/target/release/bundle/nsis/*.exe
-          fail_on_unmatched_files: true
+name: Release VoxType
+
+# Single NSIS installer: Tauri app + bundled ASR runtime + catalog/models.json.
+# Speech models are downloaded on first use from ModelScope (see catalog/models.json).
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: voxtype-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Resolve tag
+        id: meta
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $tag = '${{ inputs.tag }}'.Trim()
+          } else {
+            $tag = '${{ github.ref_name }}'.Trim()
+          }
+          if ($tag -notmatch '^v\d') { throw "Tag must look like v0.1.0, got: $tag" }
+          $version = $tag.Substring(1)
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bootstrap ONNX+GGUF third_party
+        shell: pwsh
+        run: pwsh -NoProfile -File ./scripts/bootstrap-third-party.ps1
+
+      - name: Build ASR runtime
+        shell: pwsh
+        working-directory: runtime
+        run: pwsh -NoProfile -File ./scripts/build-win.ps1
+
+      - name: Stage runtime and sync version
+        shell: pwsh
+        run: pwsh -NoProfile -File ./scripts/prepare-tauri-build.ps1 -Version '${{ steps.meta.outputs.version }}'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Build Tauri installer
+        shell: pwsh
+        working-directory: app
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tauri build
+
+      - name: Upload GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: VoxType ${{ steps.meta.outputs.tag }}
+          files: app/src-tauri/target/release/bundle/nsis/*.exe
+          fail_on_unmatched_files: true
 

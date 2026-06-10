@@ -5,14 +5,14 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_WS_PORT: u16 = 6016;
 pub const DEFAULT_API_PORT: u16 = 6020;
 pub const DEFAULT_HOTKEY: &str = "F9";
-pub const DEFAULT_HOTKEY_MODE: &str = "hold";
+pub const DEFAULT_HOTKEY_MODE: &str = "auto";
 pub const WS_SUBPROTOCOL: &str = "voxtype-voice-v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub hotkey: String,
-    /// "hold" = press to talk, release to stop; "toggle" = press start, press again stop
+    /// "auto" = short tap toggles, long hold release-to-type; "hold" / "toggle" = fixed behavior
     #[serde(default = "default_hotkey_mode")]
     pub hotkey_mode: String,
     pub active_model_id: Option<String>,
@@ -250,6 +250,8 @@ pub struct ModelCatalogEntry {
     pub layout: String,
     #[serde(default)]
     pub runtime_preset: Option<String>,
+    #[serde(default)]
+    pub engine_backend: Option<String>,
     #[serde(default = "default_true")]
     pub supported: bool,
     pub download: ModelDownloadSpec,
@@ -260,6 +262,16 @@ impl ModelCatalogEntry {
         self.runtime_preset
             .as_deref()
             .unwrap_or(&self.model_type)
+    }
+
+    pub fn prefers_onnx_gguf(&self) -> bool {
+        self.engine_backend
+            .as_deref()
+            .map(|v| v.eq_ignore_ascii_case("onnx_gguf"))
+            .unwrap_or(matches!(
+                self.runtime_preset_or_type(),
+                "fun_asr_nano" | "qwen_asr"
+            ))
     }
 }
 
@@ -282,9 +294,81 @@ pub struct ModelsCatalog {
 }
 
 pub fn load_catalog() -> Result<ModelsCatalog, String> {
-    let path = catalog_path();
-    let raw = fs::read_to_string(&path).map_err(|e| format!("catalog read failed ({path:?}): {e}"))?;
+    if std::env::var("VOXTYPE_MODELS_CATALOG").is_ok() {
+        return read_catalog_file(&catalog_path());
+    }
+
+    let user_path = data_root().join("catalog").join("models.json");
+    if user_path.is_file() {
+        if let Some(builtin_path) = builtin_catalog_path() {
+            let user = read_catalog_file(&user_path)?;
+            let builtin = read_catalog_file(&builtin_path)?;
+            if user_catalog_is_stale(&user, &builtin) {
+                upgrade_user_catalog(&user_path, &builtin)?;
+                return Ok(builtin);
+            }
+        }
+        return read_catalog_file(&user_path);
+    }
+
+    read_catalog_file(&catalog_path())
+}
+
+fn read_catalog_file(path: &Path) -> Result<ModelsCatalog, String> {
+    let raw =
+        fs::read_to_string(path).map_err(|e| format!("catalog read failed ({path:?}): {e}"))?;
     serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+/// Built-in catalog shipped with the app (never the user override file).
+fn builtin_catalog_path() -> Option<PathBuf> {
+    if let Some(bundled) = bundled_catalog_path() {
+        if bundled.is_file() {
+            return Some(bundled);
+        }
+    }
+    let staged = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("bundle-resources")
+        .join("catalog")
+        .join("models.json");
+    if staged.is_file() {
+        return Some(staged);
+    }
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("catalog")
+        .join("models.json");
+    if repo.is_file() {
+        return Some(repo);
+    }
+    None
+}
+
+fn user_catalog_is_stale(user: &ModelsCatalog, builtin: &ModelsCatalog) -> bool {
+    if user.schema_version < builtin.schema_version {
+        return true;
+    }
+    // CapsWriter-era overrides marked hybrid models unsupported while the app supports them.
+    builtin.models.iter().any(|built_in| {
+        built_in.supported
+            && user
+                .models
+                .iter()
+                .any(|entry| entry.id == built_in.id && !entry.supported)
+    })
+}
+
+fn upgrade_user_catalog(user_path: &Path, builtin: &ModelsCatalog) -> Result<(), String> {
+    let backup = user_path.with_extension("json.bak");
+    let _ = fs::copy(user_path, &backup);
+    let raw = serde_json::to_string_pretty(builtin).map_err(|e| e.to_string())?;
+    fs::write(user_path, raw).map_err(|e| e.to_string())?;
+    tracing::info!(
+        "upgraded stale user model catalog (backup: {})",
+        backup.display()
+    );
+    Ok(())
 }
 
 pub fn find_catalog_entry(model_id: &str) -> Result<ModelCatalogEntry, String> {
@@ -334,6 +418,68 @@ fn has_qwen_asr_layout(dir: &Path) -> bool {
         && has_tokenizer_dir(dir)
 }
 
+fn has_gguf_decoder(dir: &Path) -> bool {
+    dir.read_dir()
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .any(|e| {
+            e.path()
+                .extension()
+                .and_then(|s| s.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("gguf"))
+        })
+}
+
+fn has_funasr_hybrid_layout(dir: &Path) -> bool {
+    let has_encoder = dir
+        .read_dir()
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .any(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            name.contains("encoder") && name.ends_with(".onnx")
+        });
+    let has_ctc = dir
+        .read_dir()
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .any(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            name.contains("ctc") && name.ends_with(".onnx")
+        });
+    has_encoder && has_ctc && has_gguf_decoder(dir) && dir.join("tokens.txt").is_file()
+}
+
+fn has_qwen_hybrid_layout(dir: &Path) -> bool {
+    let has_frontend = dir
+        .read_dir()
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .any(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            name.contains("encoder_frontend") && name.ends_with(".onnx")
+        });
+    let has_backend = dir
+        .read_dir()
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .any(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            name.contains("encoder_backend") && name.ends_with(".onnx")
+        });
+    has_frontend && has_backend && has_gguf_decoder(dir)
+}
+
 fn has_whisper_layout(dir: &Path) -> bool {
     let has_tokens = dir.join("tokens.txt").is_file();
     let has_encoder = dir.join("encoder.int8.onnx").is_file()
@@ -345,16 +491,71 @@ fn has_whisper_layout(dir: &Path) -> bool {
 
 pub fn is_model_installed(entry: &ModelCatalogEntry) -> bool {
     let dir = model_dir_for_id(&entry.id, &entry.layout);
+    is_model_installed_at(&dir, entry)
+}
+
+pub fn is_model_installed_at(dir: &Path, entry: &ModelCatalogEntry) -> bool {
     if !dir.is_dir() {
         return false;
     }
     let kind = entry.runtime_preset_or_type();
     match kind {
-        "whisper" => has_whisper_layout(&dir),
-        "fun_asr_nano" => has_funasr_nano_layout(&dir),
-        "qwen_asr" => has_qwen_asr_layout(&dir),
-        _ => has_paraformer_or_sensevoice_layout(&dir),
+        "whisper" => has_whisper_layout(dir),
+        "fun_asr_nano" => {
+            if entry.prefers_onnx_gguf() {
+                has_funasr_hybrid_layout(dir) || has_funasr_nano_layout(dir)
+            } else {
+                has_funasr_nano_layout(dir)
+            }
+        }
+        "qwen_asr" => {
+            if entry.prefers_onnx_gguf() {
+                has_qwen_hybrid_layout(dir) || has_qwen_asr_layout(dir)
+            } else {
+                has_qwen_asr_layout(dir)
+            }
+        }
+        _ => has_paraformer_or_sensevoice_layout(dir),
     }
+}
+
+/// Resolve the model to run, falling back to an installed model when the saved choice is missing.
+pub fn resolve_active_model(settings: &AppSettings) -> Result<ModelCatalogEntry, String> {
+    let catalog = load_catalog()?;
+    let preferred_id = settings
+        .active_model_id
+        .as_deref()
+        .or_else(|| catalog.models.iter().find(|m| m.default).map(|m| m.id.as_str()))
+        .ok_or_else(|| "未配置模型".to_string())?;
+
+    if let Some(entry) = catalog.models.iter().find(|m| m.id == preferred_id) {
+        if entry.supported && is_model_installed(entry) {
+            return Ok(entry.clone());
+        }
+    }
+
+    let mut candidates: Vec<&ModelCatalogEntry> = catalog
+        .models
+        .iter()
+        .filter(|m| m.supported && is_model_installed(m))
+        .collect();
+    candidates.sort_by_key(|m| (!m.default, m.id.clone()));
+
+    let Some(fallback) = candidates.first() else {
+        return Err("未找到已安装的识别模型，请先在设置中下载模型".into());
+    };
+
+    if settings.active_model_id.as_deref() != Some(fallback.id.as_str()) {
+        let mut next = settings.clone();
+        next.active_model_id = Some(fallback.id.clone());
+        save_settings(&next)?;
+        tracing::warn!(
+            "active model {:?} unavailable; fell back to {}",
+            settings.active_model_id,
+            fallback.name
+        );
+    }
+    Ok((*fallback).clone())
 }
 
 pub fn list_model_statuses() -> Result<Vec<ModelStatusDto>, String> {

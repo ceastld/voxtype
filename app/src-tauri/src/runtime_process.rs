@@ -1,6 +1,6 @@
 use crate::settings::{
-    load_catalog, load_settings, model_dir_for_id, resolve_runtime_provider, runtime_exe_path,
-    runtime_log_path, save_settings,
+    load_settings, model_dir_for_id, resolve_active_model, resolve_runtime_provider,
+    runtime_exe_path, runtime_log_path, save_settings,
 };
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -104,7 +104,7 @@ impl RuntimeProcess {
             .parent()
             .ok_or_else(|| format!("识别服务路径无效: {}", exe.display()))?;
 
-        let (model_dir, model_type) = resolve_active_model_dir(&settings)?;
+        let (model_dir, model_type, entry) = resolve_active_model_dir(&settings)?;
         let provider = resolve_runtime_provider(settings.use_gpu);
         tracing::info!(
             "starting runtime: exe={} port={} model={} type={} provider={}",
@@ -135,6 +135,14 @@ impl RuntimeProcess {
 
         let mut cmd = Command::new(&exe);
         cmd.current_dir(runtime_cwd);
+        let engine_backend = if entry.prefers_onnx_gguf() {
+            "onnx_gguf"
+        } else {
+            "sherpa_onnx"
+        };
+        cmd.env("VOXTYPE_ENGINE_BACKEND", engine_backend);
+        // Model files are downloaded/managed by the Tauri app — never auto-delete on bootstrap.
+        cmd.env("VOXTYPE_AUTO_DOWNLOAD_MODEL", "0");
         cmd.arg("--port")
             .arg(port.to_string())
             .arg("--model-dir")
@@ -257,29 +265,14 @@ fn chrono_lite_now() -> String {
 
 fn resolve_active_model_dir(
     settings: &crate::settings::AppSettings,
-) -> Result<(std::path::PathBuf, String), String> {
-    let catalog = load_catalog()?;
-    let active_id = settings
-        .active_model_id
-        .as_deref()
-        .or_else(|| catalog.models.iter().find(|m| m.default).map(|m| m.id.as_str()))
-        .ok_or_else(|| "未配置模型".to_string())?;
-    let entry = catalog
-        .models
-        .iter()
-        .find(|m| m.id == active_id)
-        .ok_or_else(|| format!("未知模型: {active_id}"))?;
-    if !entry.supported {
-        return Err(format!("「{}」尚未支持，请切换其他模型", entry.name));
-    }
+) -> Result<(std::path::PathBuf, String, crate::settings::ModelCatalogEntry), String> {
+    let entry = resolve_active_model(settings)?;
     let dir = model_dir_for_id(&entry.id, &entry.layout);
-    if !dir.exists() {
-        return Err(format!(
-            "模型目录不存在: {} — 请先在设置中下载模型",
-            dir.display()
-        ));
-    }
-    Ok((dir, entry.runtime_preset_or_type().to_string()))
+    Ok((
+        dir,
+        entry.runtime_preset_or_type().to_string(),
+        entry,
+    ))
 }
 
 fn find_listener_pids(port: u16) -> Vec<u32> {

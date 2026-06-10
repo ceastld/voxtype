@@ -7,6 +7,14 @@ import { useSettingsWindowSize } from "./lib/useSettingsWindowSize";
 
 const DEFAULT_HOTKEY = "F9";
 
+type HotkeyMode = "auto" | "toggle" | "hold";
+
+function parseHotkeyMode(raw: string | undefined): HotkeyMode {
+  if (raw === "toggle") return "toggle";
+  if (raw === "hold") return "hold";
+  return "auto";
+}
+
 type RuntimeHealth = {
   executionProvider?: string | null;
 };
@@ -48,7 +56,7 @@ export default function App() {
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [models, setModels] = useState<ModelStatus[]>([]);
   const [hotkey, setHotkey] = useState("F9");
-  const [hotkeyMode, setHotkeyMode] = useState<"hold" | "toggle">("hold");
+  const [hotkeyMode, setHotkeyMode] = useState<HotkeyMode>("auto");
   const [useGpu, setUseGpu] = useState(true);
   const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -66,12 +74,22 @@ export default function App() {
     setModels(list);
   }, []);
 
+  const refreshStatus = useCallback(async () => {
+    try {
+      const s = await invoke<AppStatus>("get_app_status");
+      setStatus(s);
+      return s;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       const s = await invoke<AppStatus>("get_app_status");
       setStatus(s);
       setHotkey(s.hotkey);
-      setHotkeyMode(s.hotkeyMode === "toggle" ? "toggle" : "hold");
+      setHotkeyMode(parseHotkeyMode(s.hotkeyMode));
       setUseGpu(s.useGpu !== false);
       await refreshModels();
     } catch (e) {
@@ -81,6 +99,12 @@ export default function App() {
 
   useEffect(() => {
     void refresh();
+
+    const pollMs = 1500;
+    const pollId = window.setInterval(() => {
+      void refreshStatus();
+    }, pollMs);
+
     const unlisten = listen<DownloadProgress>("model-download-progress", (ev) => {
       setDownload((prev) => ({
         percent: ev.payload.percent,
@@ -96,11 +120,24 @@ export default function App() {
       void refresh();
       setMessage("模型下载完成，已自动切换。");
     });
+    const unlistenDictation = listen<{ phase?: string }>(
+      "dictation-status",
+      () => {
+        void refreshStatus();
+      },
+    );
+    const unlistenRuntime = listen("runtime-status-changed", () => {
+      void refreshStatus();
+    });
+
     return () => {
+      window.clearInterval(pollId);
       void unlisten.then((fn) => fn());
       void unlistenDone.then((fn) => fn());
+      void unlistenDictation.then((fn) => fn());
+      void unlistenRuntime.then((fn) => fn());
     };
-  }, [refresh]);
+  }, [refresh, refreshStatus]);
 
   const applyUseGpu = async (enabled: boolean) => {
     setMessage(null);
@@ -132,7 +169,7 @@ export default function App() {
     }
   };
 
-  const applyHotkeyMode = async (mode: "hold" | "toggle") => {
+  const applyHotkeyMode = async (mode: HotkeyMode) => {
     setMessage(null);
     setHotkeyMode(mode);
     try {
@@ -140,7 +177,8 @@ export default function App() {
       await refresh();
       setMessage("触发方式已更新并立即生效。");
     } catch (e) {
-      setHotkeyMode(mode === "toggle" ? "hold" : "toggle");
+      setHotkeyMode((prev) => prev);
+      await refresh();
       setMessage(e instanceof Error ? e.message : String(e));
     }
   };
@@ -221,7 +259,9 @@ export default function App() {
           <button
             type="button"
             className="ghost"
-            onClick={() => void invoke("restart_runtime").then(() => refresh())}
+            onClick={() => {
+              void invoke("restart_runtime").then(() => refreshStatus());
+            }}
           >
             重启服务
           </button>
@@ -312,19 +352,18 @@ export default function App() {
               id="hotkeyMode"
               value={hotkeyMode}
               onChange={(e) =>
-                void applyHotkeyMode(
-                  e.target.value === "toggle" ? "toggle" : "hold",
-                )
+                void applyHotkeyMode(parseHotkeyMode(e.target.value))
               }
             >
+              <option value="auto">自动（短按切换 · 长按松开输入）</option>
               <option value="hold">按住说话，松开结束</option>
               <option value="toggle">按一下开始，再按一下结束</option>
             </select>
           </div>
           <p className="hint">
             点击快捷键按钮后按下组合键（如 Ctrl+Shift+V、Alt+F9）或功能键（F1–F24）；
-            保存后立即生效。松手后会多录约 0.3 秒尾音，减少句末被截断。
-            悬浮窗在说话时显示实时识别文字，不抢焦点。
+            保存后立即生效。自动模式下：快速点按两次结束听写，长按则松手后输入。
+            松手后会多录约 0.3 秒尾音，减少句末被截断。悬浮窗在说话时显示实时识别文字，不抢焦点。
           </p>
         </section>
 

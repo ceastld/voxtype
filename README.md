@@ -61,8 +61,27 @@ cd ../app && pnpm install && pnpm tauri build
 
 ## Quicker integration
 
-Install the `plugin/` package, bind a button to `VoxType.Plugin.Launcher.Start`.  
-Or use the bundled Quicker action (see `scripts/setup-quicker-action.ps1`).
+Install the `plugin/` package into your action `{packagePath}`:
+
+```text
+load {packagePath}/VoxType.Plugin.{version}.dll
+type VoxType.Plugin.Launcher, VoxType.Plugin
+```
+
+**Control via `quicker_in_param`** (same pattern as QuickerRpc):
+
+| Param | Action |
+|-------|--------|
+| `start` | Begin recording |
+| `stop` | End, type into focused window → Quicker var `voxtype_text` |
+| `toggle` | Toggle recording |
+| `download` | Download NSIS to Downloads → var `voxtype_installer_path` (user runs setup) |
+
+C#: `Launcher.Start(context)`, `StartFromQuickerInParam("start", context)`, `StartDictation` / `StopDictation`.
+
+HTTP (no plugin): `POST http://127.0.0.1:6020/dictate/start|stop|toggle`
+
+Full design (HTTP vs pipe): [quicker-rpc docs/voxtype-quicker-integration.md](../quicker-rpc/docs/voxtype-quicker-integration.md) when monorepo sibling exists, or see `scripts/setup-quicker-action.ps1`.
 
 ## Acknowledgments
 

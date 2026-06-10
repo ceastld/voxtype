@@ -8,8 +8,8 @@
 |--------|----------------|---------|
 | `sensevoice` | Supported | sherpa-onnx |
 | `paraformer` | Supported | sherpa-onnx |
-| `fun_asr_nano` | Supported | sherpa-onnx |
-| `qwen_asr` | Supported | sherpa-onnx |
+| `fun_asr_nano` | Supported | ONNX+GGUF hybrid (default) · sherpa-onnx fallback |
+| `qwen_asr` | Supported | ONNX+GGUF hybrid (default) · sherpa-onnx fallback |
 
 ## Example entry
 

@@ -39,32 +39,42 @@ foreach ($model in $doc.models) {
     }
 
     $source = [string]$download.source
-    if ($source -ine "modelscope") {
-        $errors.Add("[$id] supported model must use download.source=modelscope (got: $source)")
+    if ($source -ieq "modelscope") {
+        $base = [string]$download.modelscopeResolveBase
+        if ([string]::IsNullOrWhiteSpace($base)) {
+            $errors.Add("[$id] missing download.modelscopeResolveBase")
+        } elseif ($base -notmatch '^https://www\.modelscope\.cn/models/') {
+            $errors.Add("[$id] modelscopeResolveBase must be a ModelScope resolve URL")
+        }
+
+        $files = @($download.modelscopeFiles)
+        if ($files.Count -eq 0) {
+            $errors.Add("[$id] missing download.modelscopeFiles")
+            continue
+        }
+
+        $required = @($files | Where-Object { $_.required -ne $false })
+        if ($required.Count -eq 0) {
+            $errors.Add("[$id] modelscopeFiles has no required entries")
+        }
         continue
     }
 
-    $base = [string]$download.modelscopeResolveBase
-    if ([string]::IsNullOrWhiteSpace($base)) {
-        $errors.Add("[$id] missing download.modelscopeResolveBase")
-    } elseif ($base -notmatch '^https://www\.modelscope\.cn/models/') {
-        $errors.Add("[$id] modelscopeResolveBase must be a ModelScope resolve URL")
-    }
-
-    $files = @($download.modelscopeFiles)
-    if ($files.Count -eq 0) {
-        $errors.Add("[$id] missing download.modelscopeFiles")
+    if ($source -in @("zip", "archive")) {
+        $url = [string]$download.url
+        if ([string]::IsNullOrWhiteSpace($url)) {
+            $errors.Add("[$id] missing download.url for source=$source")
+        } elseif ($url -notmatch '^https?://') {
+            $errors.Add("[$id] download.url must be http(s)")
+        }
         continue
     }
 
-    $required = @($files | Where-Object { $_.required -ne $false })
-    if ($required.Count -eq 0) {
-        $errors.Add("[$id] modelscopeFiles has no required entries")
-    }
+    $errors.Add("[$id] unsupported download.source: $source")
 }
 
 if ($errors.Count -gt 0) {
     throw ("models.json validation failed:`n - " + ($errors -join "`n - "))
 }
 
-Write-Host "==> models.json OK ($($doc.models.Count) entries, supported models have ModelScope URLs)" -ForegroundColor Green
+Write-Host "==> models.json OK ($($doc.models.Count) entries)" -ForegroundColor Green

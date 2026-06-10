@@ -1,12 +1,19 @@
 <Project>
   <PropertyGroup>
     <QuickerDllPath Condition="'$(QuickerDllPath)' == ''">$(QUICKER_DLL_PATH)</QuickerDllPath>
+    <_QuickerDebugPath Condition="'$(QuickerDllPath)' == ''">D:\source\repos\quicker\quickerorg\Quicker\QuickerPc\Quicker\bin\x64\Debug\net472</_QuickerDebugPath>
     <_QuickerReleasePath Condition="'$(QuickerDllPath)' == ''">C:\Program Files\Quicker</_QuickerReleasePath>
+    <QuickerDllPath Condition="'$(QuickerDllPath)' == '' And Exists('$(_QuickerDebugPath)\Quicker.exe')">$(_QuickerDebugPath)</QuickerDllPath>
     <QuickerDllPath Condition="'$(QuickerDllPath)' == ''">$(_QuickerReleasePath)</QuickerDllPath>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Quicker">
       <HintPath>$(QuickerDllPath)\Quicker.exe</HintPath>
+      <SpecificVersion>false</SpecificVersion>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Quicker.Public">
+      <HintPath>$(QuickerDllPath)\Quicker.Public.dll</HintPath>
       <SpecificVersion>false</SpecificVersion>
       <Private>false</Private>
     </Reference>
