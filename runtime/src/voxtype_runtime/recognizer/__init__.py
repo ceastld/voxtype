@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def _engine_backend() -> str:
-    return os.environ.get("VOXTYPE_ENGINE_BACKEND", "onnx_gguf").strip().lower()
+    return os.environ.get("VOXTYPE_ENGINE_BACKEND", "sherpa_onnx").strip().lower()
 
 
 def create_recognizer(

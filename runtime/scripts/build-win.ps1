@@ -15,8 +15,8 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
 
-Write-Host "==> uv sync (voice-asr-runtime + onnx-gguf)" -ForegroundColor Cyan
-uv sync --extra onnx-gguf 2>$null
+Write-Host "==> uv sync (sherpa-onnx runtime)" -ForegroundColor Cyan
+uv sync 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "    uv sync skipped (dev runtime may be running — lock on voxtype-runtime.exe)" -ForegroundColor DarkYellow
 }

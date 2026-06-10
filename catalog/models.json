@@ -82,12 +82,12 @@
     {
       "id": "fun-asr-nano",
       "name": "Fun-ASR-Nano",
-      "description": "ONNX+GGUF 混合 · 中英日方言 · 比纯 ONNX 更快更省显存",
+      "description": "即将支持 · ONNX+GGUF 混合 · 中英日方言",
       "type": "fun_asr_nano",
       "runtimePreset": "fun_asr_nano",
       "engineBackend": "onnx_gguf",
       "layout": "fun-asr-nano",
-      "supported": true,
+      "supported": false,
       "default": false,
       "download": {
         "source": "zip",
@@ -102,12 +102,12 @@
     {
       "id": "qwen-asr",
       "name": "Qwen3-ASR",
-      "description": "ONNX+GGUF 混合 · 最高精度 · 长音频更稳",
+      "description": "即将支持 · ONNX+GGUF 混合 · 最高精度",
       "type": "qwen_asr",
       "runtimePreset": "qwen_asr",
       "engineBackend": "onnx_gguf",
       "layout": "qwen-asr",
-      "supported": true,
+      "supported": false,
       "default": false,
       "download": {
         "source": "zip",

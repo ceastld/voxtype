@@ -4,12 +4,12 @@ Local ASR server for [VoxType](../README.md) (`voxtype-voice-v1` WebSocket proto
 
 ## Engine backends
 
-| Backend | Models | Stack |
-|---------|--------|-------|
-| `onnx_gguf` (default for FunASR / Qwen3) | fun-asr-nano, qwen-asr | ONNX encoder + llama.cpp GGUF decoder ([HaujetZhao](https://github.com/HaujetZhao/Fun-ASR-GGUF)) |
-| `sherpa_onnx` (fallback) | all sherpa exports | sherpa-onnx pure ONNX |
+| Backend | Models | Shipped in installer |
+|---------|--------|----------------------|
+| `sherpa_onnx` (default) | SenseVoice, Paraformer | Yes |
+| `onnx_gguf` (planned) | Fun-ASR-Nano, Qwen3-ASR | No — dev-only until a separate add-on pack |
 
-Set `VOXTYPE_ENGINE_BACKEND=sherpa_onnx` to force the legacy all-ONNX path.
+Set `VOXTYPE_ENGINE_BACKEND=onnx_gguf` only when developing hybrid models locally.
 
 ## Dev
 
