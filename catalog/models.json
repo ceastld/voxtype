@@ -5,7 +5,7 @@
     {
       "id": "sensevoice-int8",
       "name": "SenseVoice Small",
-      "description": "CPU 超快 · 自带标点 · 多语种",
+      "description": "推荐 · CPU 超快 · 自带标点 · 多语种",
       "type": "sensevoice",
       "runtimePreset": "sensevoice",
       "layout": "sensevoice",
@@ -23,7 +23,7 @@
     {
       "id": "paraformer-zh-small",
       "name": "Paraformer 中文 Small",
-      "description": "CPU 最快 · 无自动标点",
+      "description": "备选 · CPU 最快 · 无自动标点",
       "type": "paraformer",
       "runtimePreset": "paraformer",
       "layout": "paraformer-zh",
@@ -39,84 +39,6 @@
           { "name": "am.mvn", "required": true },
           { "name": "config.yaml", "required": true }
         ]
-      }
-    },
-    {
-      "id": "paraformer-zh",
-      "name": "Paraformer 中文 Large",
-      "description": "更高精度 · 无自动标点",
-      "type": "paraformer",
-      "runtimePreset": "paraformer",
-      "layout": "paraformer-zh-large",
-      "supported": true,
-      "default": false,
-      "download": {
-        "source": "modelscope",
-        "modelscopeResolveBase": "https://www.modelscope.cn/models/pengzhendong/sherpa-onnx-paraformer-zh/resolve/master",
-        "modelscopeFiles": [
-          { "name": "model.int8.onnx", "required": false },
-          { "name": "model.onnx", "required": true },
-          { "name": "tokens.txt", "required": true }
-        ]
-      }
-    },
-    {
-      "id": "paraformer-trilingual",
-      "name": "Paraformer 中英粤",
-      "description": "普通话+英语+粤语 · 无自动标点",
-      "type": "paraformer",
-      "runtimePreset": "paraformer",
-      "layout": "paraformer-trilingual",
-      "supported": true,
-      "default": false,
-      "download": {
-        "source": "modelscope",
-        "modelscopeResolveBase": "https://www.modelscope.cn/models/pengzhendong/sherpa-onnx-paraformer-trilingual-zh-cantonese-en/resolve/master",
-        "modelscopeFiles": [
-          { "name": "model.int8.onnx", "required": false },
-          { "name": "model.onnx", "required": true },
-          { "name": "tokens.txt", "required": true }
-        ]
-      }
-    },
-    {
-      "id": "fun-asr-nano",
-      "name": "Fun-ASR-Nano",
-      "description": "即将支持 · ONNX+GGUF 混合 · 中英日方言",
-      "type": "fun_asr_nano",
-      "runtimePreset": "fun_asr_nano",
-      "engineBackend": "onnx_gguf",
-      "layout": "fun-asr-nano",
-      "supported": false,
-      "default": false,
-      "download": {
-        "source": "zip",
-        "url": "https://github.com/HaujetZhao/CapsWriter-Offline/releases/download/models/Fun-ASR-Nano-GGUF.zip",
-        "mirrorUrl": "https://ghfast.top/https://github.com/HaujetZhao/CapsWriter-Offline/releases/download/models/Fun-ASR-Nano-GGUF.zip",
-        "fallbackUrls": [
-          "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2"
-        ],
-        "sizeBytes": 834000000
-      }
-    },
-    {
-      "id": "qwen-asr",
-      "name": "Qwen3-ASR",
-      "description": "即将支持 · ONNX+GGUF 混合 · 最高精度",
-      "type": "qwen_asr",
-      "runtimePreset": "qwen_asr",
-      "engineBackend": "onnx_gguf",
-      "layout": "qwen-asr",
-      "supported": false,
-      "default": false,
-      "download": {
-        "source": "zip",
-        "url": "https://github.com/HaujetZhao/Qwen3-ASR-GGUF/releases/download/models/Qwen3-ASR-0.6B-gguf.zip",
-        "mirrorUrl": "https://ghfast.top/https://github.com/HaujetZhao/Qwen3-ASR-GGUF/releases/download/models/Qwen3-ASR-0.6B-gguf.zip",
-        "fallbackUrls": [
-          "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2"
-        ],
-        "sizeBytes": 564000000
       }
     }
   ]

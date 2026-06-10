@@ -88,6 +88,28 @@ pub fn model_dir_for_id(_model_id: &str, layout: &str) -> PathBuf {
     models_dir().join(layout)
 }
 
+/// Runtime WS and HTTP API must not share a port — otherwise the app panics on API bind.
+fn normalize_listen_ports(settings: &mut AppSettings) {
+    if settings.api_port != settings.runtime_ws_port {
+        return;
+    }
+    let mut candidate = DEFAULT_API_PORT;
+    if candidate == settings.runtime_ws_port {
+        candidate = settings
+            .runtime_ws_port
+            .saturating_add(1)
+            .clamp(RUNTIME_PORT_MIN, RUNTIME_PORT_MAX);
+    }
+    tracing::warn!(
+        "api_port and runtime_ws_port both {}; moving api_port to {candidate}",
+        settings.runtime_ws_port
+    );
+    settings.api_port = candidate;
+}
+
+const RUNTIME_PORT_MIN: u16 = 6016;
+const RUNTIME_PORT_MAX: u16 = 6100;
+
 pub fn load_settings() -> AppSettings {
     let path = settings_path();
     if !path.exists() {
@@ -95,10 +117,16 @@ pub fn load_settings() -> AppSettings {
         let _ = save_settings(&s);
         return s;
     }
-    match fs::read_to_string(&path) {
+    let mut settings = match fs::read_to_string(&path) {
         Ok(raw) => serde_json::from_str(&raw).unwrap_or_default(),
         Err(_) => AppSettings::default(),
+    };
+    let before_api = settings.api_port;
+    normalize_listen_ports(&mut settings);
+    if settings.api_port != before_api {
+        let _ = save_settings(&settings);
     }
+    settings
 }
 
 pub fn save_settings(settings: &AppSettings) -> Result<(), String> {

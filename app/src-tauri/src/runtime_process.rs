@@ -14,6 +14,18 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+#[cfg(windows)]
+fn hidden_command(program: &str) -> Command {
+    let mut cmd = Command::new(program);
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
+#[cfg(not(windows))]
+fn hidden_command(program: &str) -> Command {
+    Command::new(program)
+}
+
 const RUNTIME_PORT_MIN: u16 = 6016;
 const RUNTIME_PORT_MAX: u16 = 6100;
 
@@ -145,7 +157,9 @@ impl RuntimeProcess {
             .arg(&model_type)
             .arg("--provider")
             .arg(provider);
-        cmd.stdout(Stdio::null()).stderr(Stdio::from(log_file));
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::from(log_file));
         #[cfg(windows)]
         cmd.creation_flags(CREATE_NO_WINDOW);
 
@@ -270,8 +284,10 @@ fn resolve_active_model_dir(
 }
 
 fn find_listener_pids(port: u16) -> Vec<u32> {
-    let Some(output) = Command::new("netstat")
+    let Some(output) = hidden_command("netstat")
         .args(["-ano", "-p", "tcp"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
         .output()
         .ok()
     else {
@@ -295,8 +311,10 @@ fn find_listener_pids(port: u16) -> Vec<u32> {
 }
 
 fn process_image_name(pid: u32) -> Option<String> {
-    let output = Command::new("tasklist")
+    let output = hidden_command("tasklist")
         .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
         .output()
         .ok()?;
     let line = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -318,8 +336,10 @@ fn kill_voxtype_runtime_pids(pids: &[u32]) -> Result<(), String> {
         if !is_voxtype_runtime_pid(*pid) {
             continue;
         }
-        let status = Command::new("taskkill")
+        let status = hidden_command("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .status()
             .map_err(|e| format!("taskkill failed: {e}"))?;
         tracing::warn!(

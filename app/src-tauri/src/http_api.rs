@@ -67,9 +67,13 @@ async fn dictate_toggle(
 pub async fn serve(state: Arc<ApiState>, port: u16) {
     let app = router(state);
     let addr = format!("127.0.0.1:{port}");
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .expect("bind http api");
+    let listener = match tokio::net::TcpListener::bind(&addr).await {
+        Ok(listener) => listener,
+        Err(e) => {
+            tracing::error!("VoxType API failed to bind {addr}: {e}");
+            return;
+        }
+    };
     tracing::info!("VoxType API listening on http://{addr}");
     axum::serve(listener, app).await.ok();
 }
