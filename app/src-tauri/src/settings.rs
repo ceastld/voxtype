@@ -43,11 +43,13 @@ impl Default for AppSettings {
 }
 
 /// ONNX execution provider when GPU acceleration is enabled (platform-specific).
+/// Matches QuickerAgent voice-asr-runtime: DirectML on Windows, CoreML on macOS, CUDA on Linux.
 pub fn preferred_gpu_provider() -> &'static str {
     if cfg!(target_os = "macos") {
         "coreml"
+    } else if cfg!(windows) {
+        "directml"
     } else {
-        // Windows and Linux: sherpa-onnx pre-built wheels ship CUDA (+ CPU fallback).
         "cuda"
     }
 }

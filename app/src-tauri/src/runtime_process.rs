@@ -104,7 +104,7 @@ impl RuntimeProcess {
             .parent()
             .ok_or_else(|| format!("识别服务路径无效: {}", exe.display()))?;
 
-        let (model_dir, model_type, entry) = resolve_active_model_dir(&settings)?;
+        let (model_dir, model_type, _entry) = resolve_active_model_dir(&settings)?;
         let provider = resolve_runtime_provider(settings.use_gpu);
         tracing::info!(
             "starting runtime: exe={} port={} model={} type={} provider={}",
@@ -135,12 +135,6 @@ impl RuntimeProcess {
 
         let mut cmd = Command::new(&exe);
         cmd.current_dir(runtime_cwd);
-        let engine_backend = if entry.prefers_onnx_gguf() {
-            "onnx_gguf"
-        } else {
-            "sherpa_onnx"
-        };
-        cmd.env("VOXTYPE_ENGINE_BACKEND", engine_backend);
         // Model files are downloaded/managed by the Tauri app — never auto-delete on bootstrap.
         cmd.env("VOXTYPE_AUTO_DOWNLOAD_MODEL", "0");
         cmd.arg("--port")

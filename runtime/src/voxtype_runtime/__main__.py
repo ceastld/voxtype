@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     base_config = load_config(argv)
+    configure_logging(base_config.log_level)
     try:
         config = resolve_runtime_model(base_config)
     except SystemExit:
@@ -36,8 +37,6 @@ def main(argv: list[str] | None = None) -> None:
     except Exception as exc:
         logging.getLogger(__name__).error("ASR model bootstrap failed: %s", exc)
         raise SystemExit(1) from exc
-
-    configure_logging(config.log_level)
     logging.getLogger(__name__).info(
         "Starting voxtype-runtime (model_dir=%s)",
         config.model_dir,

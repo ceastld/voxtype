@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import struct
+import sys
 from pathlib import Path
 
 import sherpa_onnx
@@ -117,6 +118,9 @@ def _provider_chain(requested: str) -> list[str]:
     normalized = _normalize_provider(requested)
     if normalized == "cpu":
         return ["cpu"]
+    # CPU sherpa wheels on Windows ship DirectML, not CUDA.
+    if sys.platform == "win32" and normalized == "cuda":
+        return ["directml", "cpu"]
     return [normalized, "cpu"]
 
 
