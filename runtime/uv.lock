@@ -1238,21 +1238,56 @@ wheels = [
 
 [[package]]
 name = "sherpa-onnx"
-version = "1.13.2+cuda"
-source = { registry = "https://k2-fsa.github.io/sherpa/onnx/cuda.html" }
+version = "1.13.2"
+source = { registry = "https://k2-fsa.github.io/sherpa/onnx/cpu.html" }
 wheels = [
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp311-cp311-linux_aarch64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp311-cp311-linux_x86_64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp311-cp311-win_amd64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp312-cp312-linux_aarch64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp312-cp312-linux_x86_64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp312-cp312-win_amd64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp313-cp313-linux_aarch64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp313-cp313-linux_x86_64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp313-cp313-win_amd64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp314-cp314-linux_aarch64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp314-cp314-linux_x86_64.whl" },
-    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cuda/1.13.2/sherpa_onnx-1.13.2+cuda-cp314-cp314-win_amd64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-linux_armv7l.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-macosx_10_15_universal2.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-macosx_10_15_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-macosx_11_0_arm64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-win32.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp311-cp311-win_amd64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-linux_armv7l.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-macosx_10_15_universal2.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-macosx_10_15_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-macosx_11_0_arm64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-win32.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp312-cp312-win_amd64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-linux_armv7l.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-macosx_10_15_universal2.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-macosx_10_15_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-macosx_11_0_arm64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-win32.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp313-cp313-win_amd64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-linux_armv7l.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-macosx_10_15_universal2.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-macosx_10_15_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-macosx_11_0_arm64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-win32.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx-1.13.2-cp314-cp314-win_amd64.whl" },
+]
+
+[[package]]
+name = "sherpa-onnx-core"
+version = "1.13.2"
+source = { registry = "https://k2-fsa.github.io/sherpa/onnx/cpu.html" }
+wheels = [
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-macosx_10_15_universal2.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-macosx_10_15_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-macosx_11_0_arm64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-manylinux2014_aarch64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-manylinux2014_x86_64.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-manylinux_2_35_armv7l.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-win32.whl" },
+    { url = "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/main/cpu/1.13.2/sherpa_onnx_core-1.13.2-py3-none-win_amd64.whl" },
 ]
 
 [[package]]
@@ -1314,12 +1349,13 @@ wheels = [
 
 [[package]]
 name = "voxtype-runtime"
-version = "0.1.8"
+version = "0.1.9"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "numpy" },
     { name = "sherpa-onnx" },
+    { name = "sherpa-onnx-core" },
 ]
 
 [package.optional-dependencies]
@@ -1337,6 +1373,7 @@ onnx-gguf = [
 sherpa = [
     { name = "numpy" },
     { name = "sherpa-onnx" },
+    { name = "sherpa-onnx-core" },
 ]
 
 [package.dev-dependencies]
@@ -1358,8 +1395,10 @@ requires-dist = [
     { name = "rich", marker = "extra == 'onnx-gguf'", specifier = ">=13.0.0" },
     { name = "scipy", marker = "extra == 'onnx-gguf'", specifier = ">=1.11.0" },
     { name = "sentencepiece", marker = "extra == 'onnx-gguf'", specifier = ">=0.2.0" },
-    { name = "sherpa-onnx", specifier = "==1.13.2+cuda", index = "https://k2-fsa.github.io/sherpa/onnx/cuda.html" },
-    { name = "sherpa-onnx", marker = "extra == 'sherpa'", specifier = "==1.13.2+cuda", index = "https://k2-fsa.github.io/sherpa/onnx/cuda.html" },
+    { name = "sherpa-onnx", specifier = "==1.13.2", index = "https://k2-fsa.github.io/sherpa/onnx/cpu.html" },
+    { name = "sherpa-onnx", marker = "extra == 'sherpa'", specifier = "==1.13.2", index = "https://k2-fsa.github.io/sherpa/onnx/cpu.html" },
+    { name = "sherpa-onnx-core", specifier = "==1.13.2", index = "https://k2-fsa.github.io/sherpa/onnx/cpu.html" },
+    { name = "sherpa-onnx-core", marker = "extra == 'sherpa'", specifier = "==1.13.2", index = "https://k2-fsa.github.io/sherpa/onnx/cpu.html" },
     { name = "soundfile", marker = "extra == 'onnx-gguf'", specifier = ">=0.12.0" },
     { name = "srt", marker = "extra == 'onnx-gguf'", specifier = ">=3.5.0" },
 ]

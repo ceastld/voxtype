@@ -1,6 +1,6 @@
 [project]
 name = "voxtype-runtime"
-version = "0.1.9"
+version = "0.1.10"
 description = "Local ASR server for VoxType (voxtype-voice-v1 WebSocket protocol)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,14 +9,17 @@ authors = [{ name = "VoxType contributors" }]
 dependencies = [
     "aiohttp>=3.10.0",
     "numpy>=2.0.0",
-    "sherpa-onnx==1.13.2+cuda",
+    "sherpa-onnx==1.13.2",
+    "sherpa-onnx-core==1.13.2",
 ]
 
 [project.optional-dependencies]
 sherpa = [
-    "sherpa-onnx==1.13.2+cuda",
+    "sherpa-onnx==1.13.2",
+    "sherpa-onnx-core==1.13.2",
     "numpy>=2.0.0",
 ]
+# Dev-only: ONNX+GGUF hybrid engines (not bundled in release installer)
 onnx-gguf = [
     "onnxruntime>=1.17.0",
     "scipy>=1.11.0",
@@ -50,12 +53,13 @@ dev-dependencies = [
 ]
 
 [[tool.uv.index]]
-name = "sherpa-cuda"
-url = "https://k2-fsa.github.io/sherpa/onnx/cuda.html"
+name = "sherpa-cpu"
+url = "https://k2-fsa.github.io/sherpa/onnx/cpu.html"
 format = "flat"
 
 [tool.uv.sources]
-sherpa-onnx = { index = "sherpa-cuda" }
+sherpa-onnx = { index = "sherpa-cpu" }
+sherpa-onnx-core = { index = "sherpa-cpu" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

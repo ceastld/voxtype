@@ -15,10 +15,13 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
 
-Write-Host "==> uv sync (sherpa-onnx runtime)" -ForegroundColor Cyan
+Write-Host "==> uv sync (sherpa-onnx CPU runtime)" -ForegroundColor Cyan
 uv sync 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "    uv sync skipped (dev runtime may be running — lock on voxtype-runtime.exe)" -ForegroundColor DarkYellow
+} else {
+    # Avoid accidentally packaging a stale CUDA wheel left in .venv from hybrid dev.
+    uv sync --reinstall-package sherpa-onnx --reinstall-package sherpa-onnx-core 2>$null | Out-Null
 }
 
 $PyInstaller = Join-Path $Root ".venv" "Scripts" "pyinstaller.exe"
